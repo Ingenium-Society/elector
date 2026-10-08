@@ -1,0 +1,26 @@
+# --- Election data: NEVER commit these ---
+data/*
+!data/.gitkeep
+*.sqlite
+*.sqlite3
+*.db
+tokens*.txt
+tokens*.csv
+tokens*.pdf
+exports/
+results*.xlsx
+results*.csv
+ballots*.csv
+
+# --- Python ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
