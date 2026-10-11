@@ -1,5 +1,9 @@
 # OSIS/StuCo Election: Local Network Voting System
-**Specification v0.3 (draft): decisions recorded in section 15**
+**Specification v0.4 (draft): scope note for the offline/online split**
+
+> **Scope:** this spec describes the **offline** version (`offline/`), which is the version
+> used for the real election. An experimental online demo (`online/`) is not covered here;
+> see `online/README.md` for how it differs.
 
 ---
 
@@ -15,7 +19,7 @@ A local, offline voting system for the school's student council president electi
 - Simple enough to run reliably on election day.
 
 ### Non-goals
-- Remote or online voting outside the room.
+- Remote or online voting outside the room. (An experimental online demo lives in `online/`; it is not the election system.)
 - Protection against a fully malicious admin who controls the laptop (mitigated by process, see §10).
 - Device fingerprinting as the primary anti-fraud mechanism (see §6).
 
