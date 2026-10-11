@@ -24,6 +24,18 @@ as the result.
 **The full design is in `docs/SPEC.md`. It is the source of truth.** The build order is in
 `docs/ROADMAP.md`.
 
+### Repo layout: two versions
+
+```
+docs/      shared spec and roadmap
+offline/   the real election: FastAPI + SQLite, local Wi-Fi, no internet
+online/    experimental hosted demo (not started; fake data only)
+```
+
+Anything in this file about running, testing or editing code means `offline/` unless it says
+otherwise. Work on `online/` only if a human asks for it. Never put real election data in
+`online/`. See `online/README.md` for how it differs.
+
 ## 2. Decisions already made (do not reopen without asking a human)
 
 - **Tokens, not fingerprints.** One-time tokens are the only gate. Device
@@ -34,9 +46,16 @@ as the result.
 - 3 candidates. All 120 voters vote at the same time (no batches).
 - Stack: Python, FastAPI, SQLite, WebSockets, plain HTML/JS. No frontend framework.
 - Observers: the Class Representative Council.
+- **Two versions in one repo:** `offline/` (the real election) and `online/` (an experimental
+  demo). They are two folders on `main`, not two long-lived branches. Tag the exact commit
+  used on election day (for example `election-v1`).
 - Still open: whether there is a blank/abstain option (currently assumed none).
 
 ## 3. Rules that must never be broken
+
+These rules are written for `offline/`, the real election. Rules 1 to 4 and 6 to 8 also
+apply to `online/` as far as the platform allows. Rules 5 and 9 are specific to the offline
+setup. Where `online/` cannot meet a rule, it must say so in `online/README.md`.
 
 1. **Anonymity.** The `votes` table contains only `id` (random UUID) and `candidate_id`.
    Never add a timestamp, token reference, IP address, or device info to votes, and
@@ -71,6 +90,8 @@ are changing it at the same time.
 **While you work**
 - Work on a **branch**, never on `main`: `git checkout -b stage-3-tokens`.
 - **One stage or one small task per branch.** Keep changes small and focused.
+- **One folder per pull request.** Change `offline/` or `online/`, not both. If both need the
+  same change, make two pull requests.
 - **Do not edit files outside your task.** Do not reformat, rename, or "tidy up"
   other people's files.
 - If another person's file seems wrong, tell the human and leave it alone.
@@ -98,18 +119,23 @@ are changing it at the same time.
 
 ## 6. Quick facts
 
+- Run these from the `offline/` folder: `cd offline`
 - Run the server: `uvicorn app.main:app --host 0.0.0.0 --port 8000`
-- Tests: `pytest` (only the `tests/` folder is collected)
-- Database: `data/election.sqlite` (git-ignored; override with env var `VOTING_DB`)
+- Tests: `pytest` (only `offline/tests/` is collected)
+- Database: `offline/data/election.sqlite` (git-ignored; override with env var `VOTING_DB`)
 - States: `IDLE`, `OPEN`, `CLOSED`, `RESULTS` (one direction only)
 - Python 3.10+
 
 ## 7. Current status
 
 Stage 1 (database schema, config, `GET /api/state`) is in progress.
-Steps written so far: `app/config.py`, `app/schema.sql`, `app/db.py`, `app/main.py`,
-`app/static/index.html`. Next: the smoke tests in `tests/test_smoke.py`.
+Steps written so far: `offline/app/config.py`, `offline/app/schema.sql`, `offline/app/db.py`,
+`offline/app/main.py`, `offline/app/static/index.html`. Next: the smoke tests in
+`offline/tests/test_smoke.py`.
 Everything after Stage 1 is not started. See `docs/ROADMAP.md`.
+
+Repo restructured on 2026-10-11: the code now lives in `offline/`, and `online/` is a
+placeholder with no code (branch `restructure-offline-online`).
 
 ## 8. Handoff log
 
@@ -122,6 +148,18 @@ Keep it short. Format:
 - State: what works, what is untested or broken
 - Next: what should happen next / what is blocked
 ```
+
+### 2026-10-11, project owner (Claude)
+- Done: moved `app/`, `scripts/`, `tests/`, `data/`, `pytest.ini`, `requirements.txt` into
+  `offline/`; added `online/README.md` (placeholder, no code); fixed `.gitignore` for the
+  nested `data/` folder and added `.env`; updated README, CONTRIBUTING, ROADMAP (added an
+  online track), SPEC (scope note, v0.4) and this file. Branch `restructure-offline-online`.
+- State: server starts from `offline/` and `/api/state` works. `tests/test_smoke.py` is still
+  empty, so `pytest` collects nothing yet. Not changed on purpose: `offline/app/config.py`
+  uses `data/db.sqlite3` and a `STATUS` list containing `IN_PROGRES`, which differs from this
+  file and the spec (`election.sqlite`, states IDLE/OPEN/CLOSED/RESULTS, `VOTING_DB`).
+- Next: owner decides whether to match `config.py` to the spec; then the smoke tests.
+  Anyone with an open branch must rebase onto this one, because file paths changed.
 
 ### 2026-10-11, project owner
 - Done: wrote `AGENTS.md`. Stage 1 steps 1 to 4 drafted (config, schema, db, server, page).

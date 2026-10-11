@@ -1,6 +1,6 @@
 # --- Election data: NEVER commit these ---
-data/*
-!data/.gitkeep
+**/data/*
+!**/data/.gitkeep
 *.sqlite
 *.sqlite3
 *.db
@@ -24,3 +24,8 @@ venv/
 .idea/
 .DS_Store
 Thumbs.db
+
+# --- Secrets (online/ will use Supabase keys: never commit them) ---
+.env
+.env.*
+!.env.example
