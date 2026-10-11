@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>School Election</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 480px;
+           margin: 3rem auto; padding: 0 1rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <h1>School Election</h1>
+  <p id="state">Loading...</p>
+
+  <script>
+    fetch("/api/state")
+      .then(r => r.json())
+      .then(d => { document.getElementById("state").textContent = "State: " + d.state; })
+      .catch(() => { document.getElementById("state").textContent = "Cannot reach server"; });
+  </script>
+</body>
+</html>
