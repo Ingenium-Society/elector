@@ -149,6 +149,16 @@ Keep it short. Format:
 - Next: what should happen next / what is blocked
 ```
 
+### 2026-10-12, project owner (Claude)
+- Done: `offline/app/config.py` now matches the spec. Database is `offline/data/election.sqlite`,
+  the `VOTING_DB` env var overrides the path, and the list is `STATES = (IDLE, OPEN, CLOSED,
+  RESULTS)` (renamed from `STATUS`, fixed the `IN_PROGRES` typo). Branch `fix-config-match-spec`.
+- State: checked default path, override, states, and the server on a throwaway database.
+  Nothing else used `STATUS`; `db.py` only uses `DB_PATH`. `pytest` still collects nothing.
+- Next: write the smoke tests in `offline/tests/test_smoke.py` (state is IDLE, page loads,
+  `votes` has only `id` and `candidate_id`). Decide abstain before Stage 2, and the auto-close
+  design before Stage 3.
+
 ### 2026-10-11, project owner (Claude)
 - Done: moved `app/`, `scripts/`, `tests/`, `data/`, `pytest.ini`, `requirements.txt` into
   `offline/`; added `online/README.md` (placeholder, no code); fixed `.gitignore` for the
