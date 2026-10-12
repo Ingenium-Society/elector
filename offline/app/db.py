@@ -24,3 +24,17 @@ def get_state():
     with connect() as conn:
         row = conn.execute("SELECT value FROM config WHERE key = 'state'").fetchone()
     return row[0]
+
+
+def add_candidate(name):
+    """Add one candidate and return the new candidate's id."""
+    with connect() as conn:
+        cursor = conn.execute("INSERT INTO candidates (name) VALUES (?)", (name,))
+        return cursor.lastrowid
+
+
+def list_candidates():
+    """Return all candidates as a list of {"id": ..., "name": ...}, in id order."""
+    with connect() as conn:
+        rows = conn.execute("SELECT id, name FROM candidates ORDER BY id").fetchall()
+    return [{"id": row[0], "name": row[1]} for row in rows]

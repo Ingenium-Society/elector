@@ -128,9 +128,9 @@ are changing it at the same time.
 
 ## 7. Current status
 
-Stage 1 (database schema, config, `GET /api/state`) is done: smoke tests written
-(`offline/tests/test_smoke.py`) and `config.py` now matches the spec. Everything after Stage 1
-is not started. See `docs/ROADMAP.md`.
+Stage 1 (database schema, config, `GET /api/state`) is done. Stage 2 (candidates:
+`GET /api/candidates` and `scripts/add_candidates.py`) is built on branch `stage-2-candidates`.
+Everything after Stage 2 is not started. See `docs/ROADMAP.md`.
 
 Repo restructured on 2026-10-11: the code now lives in `offline/`, and `online/` is a
 placeholder with no code (branch `restructure-offline-online`).
@@ -146,6 +146,20 @@ Keep it short. Format:
 - State: what works, what is untested or broken
 - Next: what should happen next / what is blocked
 ```
+
+### 2026-10-13, project owner (Claude), branch `stage-2-candidates`
+- Done: `db.add_candidate()` and `db.list_candidates()`; `GET /api/candidates` returns
+  `{"candidates": [{"id", "name"}, ...]}` in id order; `offline/scripts/add_candidates.py` adds
+  exactly 3 names given on the command line (refuses wrong count, duplicates, or a second run).
+  Names are typed at the command line so real names never enter the repo. 7 new tests in
+  `offline/tests/test_candidates.py`.
+- State: `pytest` passes from `offline/` (20 passed). This branch builds on
+  `stage-1-config-match-spec`, which builds on `stage-1-smoke-tests`: merge in that order.
+- Not done on purpose: the spec says `/api/candidates` is for voters "when OPEN". It currently
+  answers in every state. Locking it to OPEN needs the state rules from Stage 3/4, so a human
+  should decide whether to restrict it now. Also still open: a blank/abstain option.
+- Next: Stage 3 (tokens and voting). That touches the vote transaction and `votes` table,
+  so it needs a second human reviewer.
 
 ### 2026-10-12, project owner (Claude), branch `stage-1-config-match-spec`
 - Done: `offline/app/config.py` now matches the spec: database `data/election.sqlite`,

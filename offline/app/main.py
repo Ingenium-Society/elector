@@ -26,3 +26,8 @@ def voter_page():
 @app.get("/api/state")
 def api_state():
     return {"state": db.get_state()}
+
+
+@app.get("/api/candidates")
+def api_candidates():
+    return {"candidates": db.list_candidates()}
