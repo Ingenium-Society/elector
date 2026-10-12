@@ -53,7 +53,7 @@ python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt  # needs internet: do this BEFORE election day
 pytest
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-access-log
 ```
 
 ## Golden rules

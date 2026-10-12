@@ -1,4 +1,5 @@
 import sqlite3
+import uuid
 from pathlib import Path
 
 from app import config
@@ -38,3 +39,98 @@ def list_candidates():
     with connect() as conn:
         rows = conn.execute("SELECT id, name FROM candidates ORDER BY id").fetchall()
     return [{"id": row[0], "name": row[1]} for row in rows]
+
+
+def count_tokens():
+    """How many tokens (hashes) are stored."""
+    with connect() as conn:
+        return conn.execute("SELECT COUNT(*) FROM tokens").fetchone()[0]
+
+
+def add_token_hashes(hashes):
+    """Store token hashes, all unused. Either all of them are saved or none."""
+    with connect() as conn:
+        conn.executemany(
+            "INSERT INTO tokens (token_hash, used) VALUES (?, 0)",
+            [(h,) for h in hashes],
+        )
+
+
+def token_is_usable(token_hash):
+    """True if this hash exists and has not been used yet. Changes nothing."""
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT used FROM tokens WHERE token_hash = ?", (token_hash,)
+        ).fetchone()
+    return row is not None and row[0] == 0
+
+
+# Possible answers from cast_vote().
+VOTE_OK = "ok"
+VOTE_NOT_OPEN = "not_open"
+VOTE_BAD_TOKEN = "bad_token"
+
+
+def cast_vote(token_hash, candidate_id):
+    """Burn the token and save the vote in ONE all-or-nothing transaction.
+
+    Returns VOTE_OK, VOTE_NOT_OPEN or VOTE_BAD_TOKEN.
+
+    Why one transaction: if the token were burned and the server then crashed
+    before the vote was saved, a voter would lose their vote. If the vote were
+    saved first, a crash could let the same token vote twice. In one
+    transaction either both happen or neither does.
+
+    ANONYMITY: the vote row gets a fresh random id and the candidate, nothing
+    else. Nothing here links the token to the vote, and nothing is logged.
+    """
+    conn = connect()
+    # isolation_level = None: Python will not start transactions behind our back,
+    # so the BEGIN / COMMIT / ROLLBACK below are exactly what runs.
+    conn.isolation_level = None
+    try:
+        # IMMEDIATE takes the write lock now, so two votes can never be
+        # processed at the same moment: they queue up and go one by one.
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            # Checked inside the transaction so a vote cannot slip in
+            # after the admin pressed Close.
+            state = conn.execute(
+                "SELECT value FROM config WHERE key = 'state'"
+            ).fetchone()[0]
+            if state != "OPEN":
+                conn.execute("ROLLBACK")
+                return VOTE_NOT_OPEN
+
+            # "AND used = 0" is what makes double voting impossible: the second
+            # try finds no unused row, so zero rows change.
+            burned = conn.execute(
+                "UPDATE tokens SET used = 1 WHERE token_hash = ? AND used = 0",
+                (token_hash,),
+            ).rowcount
+            if burned != 1:
+                conn.execute("ROLLBACK")
+                return VOTE_BAD_TOKEN
+
+            conn.execute(
+                "INSERT INTO votes (id, candidate_id) VALUES (?, ?)",
+                (str(uuid.uuid4()), candidate_id),
+            )
+            conn.execute("COMMIT")
+            return VOTE_OK
+        except BaseException:
+            # Any surprise (for example an unknown candidate): undo everything,
+            # so the token is NOT burned, then let the error continue.
+            if conn.in_transaction:
+                conn.execute("ROLLBACK")
+            raise
+    finally:
+        conn.close()
+
+
+def candidate_exists(candidate_id):
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM candidates WHERE id = ?", (candidate_id,)
+        ).fetchone()
+    return row is not None

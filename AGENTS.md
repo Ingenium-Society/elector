@@ -122,7 +122,9 @@ are changing it at the same time.
 ## 6. Quick facts
 
 - Run these from the `offline/` folder: `cd offline`
-- Run the server: `uvicorn app.main:app --host 0.0.0.0 --port 8000`
+- Run the server: `uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-access-log`
+  (`--no-access-log` is required: uvicorn's default log writes each voter's IP next to
+  `POST /api/vote`, which breaks rule 2.)
 - Tests: `pytest` (only `offline/tests/` is collected)
 - Database: `offline/data/election.sqlite` (git-ignored; override with env var `VOTING_DB`)
 - States: `IDLE`, `OPEN`, `CLOSED`, `RESULTS` (one direction only)
@@ -130,9 +132,10 @@ are changing it at the same time.
 
 ## 7. Current status
 
-Stage 1 (database schema, config, `GET /api/state`) is done. Stage 2 (candidates:
-`GET /api/candidates` and `scripts/add_candidates.py`) is built on branch `stage-2-candidates`.
-Everything after Stage 2 is not started. See `docs/ROADMAP.md`.
+Stages 1 and 2 are done and merged (schema, config, `GET /api/state`, candidates).
+Stage 3 (tokens and voting) is built on branch `stage-3-tokens`, waiting for a second human
+reviewer: `scripts/generate_tokens.py`, `POST /api/token/check`, `POST /api/vote`.
+Everything after Stage 3 is not started. See `docs/ROADMAP.md`.
 
 Repo restructured on 2026-10-11: the code now lives in `offline/`, and `online/` is a
 placeholder with no code (branch `restructure-offline-online`).
@@ -148,6 +151,33 @@ Keep it short. Format:
 - State: what works, what is untested or broken
 - Next: what should happen next / what is blocked
 ```
+
+### 2026-10-13, project owner (Claude), branch `stage-3-tokens`
+- Done (3 commits, one per step, 74 tests passing):
+  1. `app/tokens.py` (8-character tokens from the 31-letter alphabet, `secrets`, normalize,
+     SHA-256) and `scripts/generate_tokens.py N` (stores only hashes; writes readable tokens to
+     git-ignored `offline/data/tokens.txt`; refuses to run twice or overwrite the file; does not
+     print the tokens).
+  2. `POST /api/token/check`: `{token}` -> `{valid: bool}`; IDLE or OPEN only (403 otherwise);
+     burns nothing, stores nothing; unknown and used tokens look the same.
+  3. `POST /api/vote`: `{token, candidate_id}`; 403 unless OPEN; 400 for unknown candidate,
+     bad or used token (same message). `db.cast_vote()` runs `BEGIN IMMEDIATE`, re-checks OPEN
+     inside the transaction, burns the token (`used = 0` guard), inserts `(uuid4, candidate_id)`,
+     commits. Any failure rolls back, so a rejected vote never burns a token.
+- State: tested with 20 simultaneous threads on one token (exactly 1 vote), double vote,
+  every wrong state, unknown candidate, forced rollback, and checks that nothing in `votes`
+  mentions the token. Also run once against a real uvicorn server (check, vote, double vote).
+- NEEDS A SECOND HUMAN REVIEWER before merging: it adds the vote transaction and writes to
+  the `votes` table (see section 4). Please read `db.cast_vote()` and `tests/test_vote.py`.
+- Found: uvicorn's default access log prints voter IPs next to `/api/vote` (rule 2). The run
+  command now has `--no-access-log` (README and section 6). Anyone starting the server another
+  way must keep that flag. Nothing in the app code logs.
+- Not done on purpose (later stages): rate limiting on check/vote (Stage 7), admin
+  Open/Close/Reveal (Stage 4; until then state can only be changed in the database), WebSocket
+  push, voter UI for token entry and candidate buttons (Stages 4 and 5), results export (Stage 6).
+- Known limit: SHA-256 of a 40-bit token is unsalted. With ~130 tokens and rate limiting this
+  matches the spec, but the reviewer should confirm it is acceptable.
+- Next: review and merge `stage-3-tokens`; then Stage 4 (admin state control + WebSocket).
 
 ### 2026-10-13, project owner (Claude), branch `stage-2-candidates`
 - Done: `db.add_candidate()` and `db.list_candidates()`; `GET /api/candidates` returns
