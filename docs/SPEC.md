@@ -357,9 +357,10 @@ Any mismatch is reported to the observers before results are shown.
 | 3 | Router and laptop | **Resolved for now.** Will be arranged later by asking school IT (including whether they can lend an access point). |
 | 4 | School approval | Required, but handled outside this spec. |
 | 5 | Observers | **The Class Representative Council.** |
+| 6 | Blank/abstain option | **None.** Voters choose one of the 3 candidates (decided 2026-10-13). |
 
 ### Open
-1. Is there a **blank/abstain** option? (Not yet decided. The spec currently assumes none.)
+None.
 
 ### Deferred
 - Data retention policy after the election: to be decided later; not needed for the build.

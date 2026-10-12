@@ -49,7 +49,9 @@ otherwise. Work on `online/` only if a human asks for it. Never put real electio
 - **Two versions in one repo:** `offline/` (the real election) and `online/` (an experimental
   demo). They are two folders on `main`, not two long-lived branches. Tag the exact commit
   used on election day (for example `election-v1`).
-- Still open: whether there is a blank/abstain option (currently assumed none).
+- **No blank/abstain option.** Decided by the project owner on 2026-10-13: voters choose
+  one of the 3 candidates.
+- `GET /api/candidates` answers only while the state is `OPEN` (403 otherwise).
 
 ## 3. Rules that must never be broken
 
@@ -160,6 +162,14 @@ Keep it short. Format:
   should decide whether to restrict it now. Also still open: a blank/abstain option.
 - Next: Stage 3 (tokens and voting). That touches the vote transaction and `votes` table,
   so it needs a second human reviewer.
+
+### 2026-10-13, project owner (Claude), branch `stage-2-candidates` (update)
+- Done: on the owner's instruction, `GET /api/candidates` now returns 403 unless the state is
+  `OPEN` (matches SPEC section 7). Decided: no blank/abstain option. Updated `docs/SPEC.md`
+  section 15. Tests set the state first and check IDLE/CLOSED/RESULTS are refused.
+- State: `pytest` passes from `offline/` (23 passed).
+- Next: Stage 3 (tokens and voting). Needs a second human reviewer. The branch
+  `fix-config-match-spec` (same config change, no tests) was not merged; the owner can delete it.
 
 ### 2026-10-12, project owner (Claude), branch `stage-1-config-match-spec`
 - Done: `offline/app/config.py` now matches the spec: database `data/election.sqlite`,

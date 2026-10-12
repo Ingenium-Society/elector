@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
 from app import db
@@ -30,4 +30,8 @@ def api_state():
 
 @app.get("/api/candidates")
 def api_candidates():
+    # Candidates are only shown while voting is OPEN. The server enforces this,
+    # not the browser: hiding the buttons in JavaScript is not security.
+    if db.get_state() != "OPEN":
+        raise HTTPException(status_code=403, detail="Voting is not open")
     return {"candidates": db.list_candidates()}

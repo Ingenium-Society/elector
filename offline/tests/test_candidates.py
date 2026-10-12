@@ -25,6 +25,12 @@ def client(temp_db):
         yield c
 
 
+def set_state(state):
+    """Put the test database into the given election state."""
+    with db.connect() as conn:
+        conn.execute("UPDATE config SET value = ? WHERE key = 'state'", (state,))
+
+
 def run_script(db_file, *names):
     """Run scripts/add_candidates.py against a temporary database."""
     env = dict(os.environ, VOTING_DB=str(db_file))
@@ -35,20 +41,33 @@ def run_script(db_file, *names):
 
 
 def test_no_candidates_at_first(client):
+    set_state("OPEN")
     assert client.get("/api/candidates").json() == {"candidates": []}
 
 
 def test_added_candidates_are_returned_in_order(client):
     for name in ("Alpha", "Beta", "Gamma"):
         db.add_candidate(name)
+    set_state("OPEN")
     names = [c["name"] for c in client.get("/api/candidates").json()["candidates"]]
     assert names == ["Alpha", "Beta", "Gamma"]
 
 
 def test_candidates_have_ids(client):
     db.add_candidate("Alpha")
+    set_state("OPEN")
     candidate = client.get("/api/candidates").json()["candidates"][0]
     assert isinstance(candidate["id"], int)
+
+
+@pytest.mark.parametrize("state", ["IDLE", "CLOSED", "RESULTS"])
+def test_candidates_hidden_unless_open(client, state):
+    # The server refuses, and must not leak the names in the error either.
+    db.add_candidate("Alpha")
+    set_state(state)
+    response = client.get("/api/candidates")
+    assert response.status_code == 403
+    assert "Alpha" not in response.text
 
 
 def test_script_adds_three_candidates(tmp_path):
