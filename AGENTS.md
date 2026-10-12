@@ -128,11 +128,11 @@ are changing it at the same time.
 
 ## 7. Current status
 
-Stage 1 (database schema, config, `GET /api/state`) is in progress.
-Steps written so far: `offline/app/config.py`, `offline/app/schema.sql`, `offline/app/db.py`,
-`offline/app/main.py`, `offline/app/static/index.html`. Next: the smoke tests in
-`offline/tests/test_smoke.py`.
-Everything after Stage 1 is not started. See `docs/ROADMAP.md`.
+Stage 1 (database schema, config, `GET /api/state`) is built and its smoke tests are written
+(`offline/tests/test_smoke.py`, 10 tests, branch `stage-1-smoke-tests`).
+One open item before Stage 1 is fully closed: `offline/app/config.py` does not yet match the
+spec (see the 2026-10-11 handoff entry below). Everything after Stage 1 is not started.
+See `docs/ROADMAP.md`.
 
 Repo restructured on 2026-10-11: the code now lives in `offline/`, and `online/` is a
 placeholder with no code (branch `restructure-offline-online`).
@@ -148,6 +148,17 @@ Keep it short. Format:
 - State: what works, what is untested or broken
 - Next: what should happen next / what is blocked
 ```
+
+### 2026-10-12, project owner (Claude)
+- Done: wrote `offline/tests/test_smoke.py` (10 tests) on branch `stage-1-smoke-tests`. They
+  cover table creation, state starting as IDLE and surviving a restart, `GET /api/state`,
+  the voter page, and three guards: `votes` has only `id` and `candidate_id`, `tokens` has only
+  `token_hash` and `used`, and the page has no internet links. Tests use a temporary database
+  (they patch `config.DB_PATH`), so they never touch `offline/data/`.
+- State: `pytest` passes from `offline/` (10 passed). No app code was changed.
+- Next: owner decides whether to match `config.py` to the spec (`election.sqlite`, `VOTING_DB`,
+  states IDLE/OPEN/CLOSED/RESULTS, not `IN_PROGRES`). After that, Stage 2 (candidates).
+  The anonymity guard tests touch the `votes` table, so the pull request needs a second reviewer.
 
 ### 2026-10-11, project owner (Claude)
 - Done: moved `app/`, `scripts/`, `tests/`, `data/`, `pytest.ini`, `requirements.txt` into
