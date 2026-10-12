@@ -38,3 +38,18 @@ def list_candidates():
     with connect() as conn:
         rows = conn.execute("SELECT id, name FROM candidates ORDER BY id").fetchall()
     return [{"id": row[0], "name": row[1]} for row in rows]
+
+
+def count_tokens():
+    """How many tokens (hashes) are stored."""
+    with connect() as conn:
+        return conn.execute("SELECT COUNT(*) FROM tokens").fetchone()[0]
+
+
+def add_token_hashes(hashes):
+    """Store token hashes, all unused. Either all of them are saved or none."""
+    with connect() as conn:
+        conn.executemany(
+            "INSERT INTO tokens (token_hash, used) VALUES (?, 0)",
+            [(h,) for h in hashes],
+        )
