@@ -53,3 +53,12 @@ def add_token_hashes(hashes):
             "INSERT INTO tokens (token_hash, used) VALUES (?, 0)",
             [(h,) for h in hashes],
         )
+
+
+def token_is_usable(token_hash):
+    """True if this hash exists and has not been used yet. Changes nothing."""
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT used FROM tokens WHERE token_hash = ?", (token_hash,)
+        ).fetchone()
+    return row is not None and row[0] == 0
