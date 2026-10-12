@@ -52,3 +52,27 @@ def api_token_check(body: TokenCheck):
         raise HTTPException(status_code=403, detail="Token checking is closed")
     # "Wrong" and "already used" give the same answer, so a guesser learns nothing extra.
     return {"valid": db.token_is_usable(tokens.hash_token(body.token))}
+
+
+class Vote(BaseModel):
+    token: str = Field(max_length=64)
+    candidate_id: int
+
+
+@app.post("/api/vote")
+def api_vote(body: Vote):
+    # The server decides everything (AGENTS.md rule 3). The browser only asks.
+    # We do not log anything here: no IP, no time, no token (rule 2).
+    if db.get_state() != "OPEN":
+        raise HTTPException(status_code=403, detail="Voting is not open")
+    if not db.candidate_exists(body.candidate_id):
+        raise HTTPException(status_code=400, detail="Unknown candidate")
+
+    result = db.cast_vote(tokens.hash_token(body.token), body.candidate_id)
+    if result == db.VOTE_NOT_OPEN:
+        raise HTTPException(status_code=403, detail="Voting is not open")
+    if result == db.VOTE_BAD_TOKEN:
+        # Wrong token and already-used token give the same answer.
+        raise HTTPException(status_code=400, detail="Invalid or already used token")
+    # We answer only "ok". Sending back anything about the vote could link it to a voter.
+    return {"ok": True}
