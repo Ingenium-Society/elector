@@ -49,7 +49,9 @@ otherwise. Work on `online/` only if a human asks for it. Never put real electio
 - **Two versions in one repo:** `offline/` (the real election) and `online/` (an experimental
   demo). They are two folders on `main`, not two long-lived branches. Tag the exact commit
   used on election day (for example `election-v1`).
-- Still open: whether there is a blank/abstain option (currently assumed none).
+- **No blank/abstain option.** Decided by the project owner on 2026-10-13: voters choose
+  one of the 3 candidates.
+- `GET /api/candidates` answers only while the state is `OPEN` (403 otherwise).
 
 ## 3. Rules that must never be broken
 
@@ -128,11 +130,9 @@ are changing it at the same time.
 
 ## 7. Current status
 
-Stage 1 (database schema, config, `GET /api/state`) is in progress.
-Steps written so far: `offline/app/config.py`, `offline/app/schema.sql`, `offline/app/db.py`,
-`offline/app/main.py`, `offline/app/static/index.html`. Next: the smoke tests in
-`offline/tests/test_smoke.py`.
-Everything after Stage 1 is not started. See `docs/ROADMAP.md`.
+Stage 1 (database schema, config, `GET /api/state`) is done. Stage 2 (candidates:
+`GET /api/candidates` and `scripts/add_candidates.py`) is built on branch `stage-2-candidates`.
+Everything after Stage 2 is not started. See `docs/ROADMAP.md`.
 
 Repo restructured on 2026-10-11: the code now lives in `offline/`, and `online/` is a
 placeholder with no code (branch `restructure-offline-online`).
@@ -148,6 +148,47 @@ Keep it short. Format:
 - State: what works, what is untested or broken
 - Next: what should happen next / what is blocked
 ```
+
+### 2026-10-13, project owner (Claude), branch `stage-2-candidates`
+- Done: `db.add_candidate()` and `db.list_candidates()`; `GET /api/candidates` returns
+  `{"candidates": [{"id", "name"}, ...]}` in id order; `offline/scripts/add_candidates.py` adds
+  exactly 3 names given on the command line (refuses wrong count, duplicates, or a second run).
+  Names are typed at the command line so real names never enter the repo. 7 new tests in
+  `offline/tests/test_candidates.py`.
+- State: `pytest` passes from `offline/` (20 passed). This branch builds on
+  `stage-1-config-match-spec`, which builds on `stage-1-smoke-tests`: merge in that order.
+- Not done on purpose: the spec says `/api/candidates` is for voters "when OPEN". It currently
+  answers in every state. Locking it to OPEN needs the state rules from Stage 3/4, so a human
+  should decide whether to restrict it now. Also still open: a blank/abstain option.
+- Next: Stage 3 (tokens and voting). That touches the vote transaction and `votes` table,
+  so it needs a second human reviewer.
+
+### 2026-10-13, project owner (Claude), branch `stage-2-candidates` (update)
+- Done: on the owner's instruction, `GET /api/candidates` now returns 403 unless the state is
+  `OPEN` (matches SPEC section 7). Decided: no blank/abstain option. Updated `docs/SPEC.md`
+  section 15. Tests set the state first and check IDLE/CLOSED/RESULTS are refused.
+- State: `pytest` passes from `offline/` (23 passed).
+- Next: Stage 3 (tokens and voting). Needs a second human reviewer. The branch
+  `fix-config-match-spec` (same config change, no tests) was not merged; the owner can delete it.
+
+### 2026-10-12, project owner (Claude), branch `stage-1-config-match-spec`
+- Done: `offline/app/config.py` now matches the spec: database `data/election.sqlite`,
+  overridable with env var `VOTING_DB`, and `STATES = IDLE, OPEN, CLOSED, RESULTS` (the old
+  `STATUS` list with `IN_PROGRES` was removed; nothing used it). Added 3 tests for this.
+  This branch builds on `stage-1-smoke-tests`: merge that one first.
+- State: `pytest` passes from `offline/` (13 passed).
+- Next: Stage 2 (candidates).
+
+### 2026-10-12, project owner (Claude)
+- Done: wrote `offline/tests/test_smoke.py` (10 tests) on branch `stage-1-smoke-tests`. They
+  cover table creation, state starting as IDLE and surviving a restart, `GET /api/state`,
+  the voter page, and three guards: `votes` has only `id` and `candidate_id`, `tokens` has only
+  `token_hash` and `used`, and the page has no internet links. Tests use a temporary database
+  (they patch `config.DB_PATH`), so they never touch `offline/data/`.
+- State: `pytest` passes from `offline/` (10 passed). No app code was changed.
+- Next: owner decides whether to match `config.py` to the spec (`election.sqlite`, `VOTING_DB`,
+  states IDLE/OPEN/CLOSED/RESULTS, not `IN_PROGRES`). After that, Stage 2 (candidates).
+  The anonymity guard tests touch the `votes` table, so the pull request needs a second reviewer.
 
 ### 2026-10-11, project owner (Claude)
 - Done: moved `app/`, `scripts/`, `tests/`, `data/`, `pytest.ini`, `requirements.txt` into
