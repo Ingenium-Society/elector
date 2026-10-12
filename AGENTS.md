@@ -128,11 +128,9 @@ are changing it at the same time.
 
 ## 7. Current status
 
-Stage 1 (database schema, config, `GET /api/state`) is built and its smoke tests are written
-(`offline/tests/test_smoke.py`, 10 tests, branch `stage-1-smoke-tests`).
-One open item before Stage 1 is fully closed: `offline/app/config.py` does not yet match the
-spec (see the 2026-10-11 handoff entry below). Everything after Stage 1 is not started.
-See `docs/ROADMAP.md`.
+Stage 1 (database schema, config, `GET /api/state`) is done: smoke tests written
+(`offline/tests/test_smoke.py`) and `config.py` now matches the spec. Everything after Stage 1
+is not started. See `docs/ROADMAP.md`.
 
 Repo restructured on 2026-10-11: the code now lives in `offline/`, and `online/` is a
 placeholder with no code (branch `restructure-offline-online`).
@@ -148,6 +146,14 @@ Keep it short. Format:
 - State: what works, what is untested or broken
 - Next: what should happen next / what is blocked
 ```
+
+### 2026-10-12, project owner (Claude), branch `stage-1-config-match-spec`
+- Done: `offline/app/config.py` now matches the spec: database `data/election.sqlite`,
+  overridable with env var `VOTING_DB`, and `STATES = IDLE, OPEN, CLOSED, RESULTS` (the old
+  `STATUS` list with `IN_PROGRES` was removed; nothing used it). Added 3 tests for this.
+  This branch builds on `stage-1-smoke-tests`: merge that one first.
+- State: `pytest` passes from `offline/` (13 passed).
+- Next: Stage 2 (candidates).
 
 ### 2026-10-12, project owner (Claude)
 - Done: wrote `offline/tests/test_smoke.py` (10 tests) on branch `stage-1-smoke-tests`. They

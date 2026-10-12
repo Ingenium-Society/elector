@@ -7,7 +7,10 @@ else in the project can be trusted yet.
 Every test uses a temporary database file, so these tests never touch
 the real election database in offline/data/.
 """
+import os
 import sqlite3
+import subprocess
+import sys
 
 import pytest
 from fastapi.testclient import TestClient
@@ -115,3 +118,31 @@ def test_voter_page_uses_no_internet_links(client):
     html = client.get("/").text
     assert "http://" not in html
     assert "https://" not in html
+
+
+# ---- Settings (must match docs/SPEC.md) ------------------------------------
+
+def test_states_match_the_spec():
+    assert config.STATES == ("IDLE", "OPEN", "CLOSED", "RESULTS")
+
+
+def test_default_database_is_election_sqlite():
+    # Checked in a fresh Python process so the VOTING_DB value of the
+    # test machine cannot change the answer.
+    code = "from app import config; print(config.DB_PATH.name)"
+    env = {k: v for k, v in os.environ.items() if k != "VOTING_DB"}
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, env=env
+    )
+    assert result.stdout.strip() == "election.sqlite"
+
+
+def test_voting_db_env_var_overrides_the_path(tmp_path):
+    import os
+    target = tmp_path / "other.sqlite"
+    code = "from app import config; print(config.DB_PATH)"
+    env = dict(os.environ, VOTING_DB=str(target))
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, env=env
+    )
+    assert result.stdout.strip() == str(target)
