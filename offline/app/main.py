@@ -1,11 +1,12 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, WebSocket
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from app import admin, db, tokens
+from app.realtime import broadcaster
 
 STATIC = Path(__file__).parent / "static"
 
@@ -13,6 +14,7 @@ STATIC = Path(__file__).parent / "static"
 @asynccontextmanager
 async def lifespan(app):
     db.init_db()   # runs once when the server starts
+    broadcaster.reset()
     yield
 
 
@@ -28,6 +30,22 @@ def voter_page():
 @app.get("/api/state")
 def api_state():
     return {"state": db.get_state()}
+
+
+@app.websocket("/ws")
+async def websocket_state(ws: WebSocket):
+    # Voter pages keep this open and hear about every state change at once.
+    # Anyone on the Wi-Fi may connect: it only ever carries the public state.
+    await broadcaster.connect(ws)
+    try:
+        while True:
+            # We ignore anything a page sends. Reading is only how we notice
+            # that the page went away.
+            message = await ws.receive()
+            if message["type"] == "websocket.disconnect":
+                break
+    finally:
+        broadcaster.disconnect(ws)
 
 
 @app.get("/api/candidates")

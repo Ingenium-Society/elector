@@ -10,6 +10,7 @@ import secrets
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
 from app import config, db
+from app.realtime import broadcaster
 
 # Addresses that mean "this very computer".
 LOCAL_ADDRESSES = ("127.0.0.1", "::1")
@@ -37,28 +38,30 @@ def require_admin(request: Request, x_admin_password: str = Header(default="")):
 router = APIRouter(prefix="/admin", dependencies=[Depends(require_admin)])
 
 
-def move_to(new_state):
-    """Change the election state, or answer 409 Conflict if that step is not allowed now."""
+async def move_to(new_state):
+    """Change the election state and tell every voter page, or answer 409 Conflict
+    if that step is not allowed right now (then nothing is sent to anyone)."""
     try:
         db.change_state(new_state)
     except db.BadTransition as problem:
         raise HTTPException(status_code=409, detail=str(problem))
+    await broadcaster.broadcast()
     return {"state": new_state}
 
 
 @router.post("/open")
-def open_voting():
-    return move_to("OPEN")
+async def open_voting():
+    return await move_to("OPEN")
 
 
 @router.post("/close")
-def close_voting():
-    return move_to("CLOSED")
+async def close_voting():
+    return await move_to("CLOSED")
 
 
 @router.post("/reveal")
-def reveal_results():
-    return move_to("RESULTS")
+async def reveal_results():
+    return await move_to("RESULTS")
 
 
 @router.get("/status")
