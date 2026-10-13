@@ -76,6 +76,14 @@ def voter_page():
     return FileResponse(STATIC / "index.html")
 
 
+@app.get("/admin")
+def admin_page(request: Request):
+    client_host = request.client.host if request.client else ""
+    if client_host not in {"127.0.0.1", "::1"}:
+        raise HTTPException(status_code=403, detail="Admin page is local-only")
+    return FileResponse(STATIC / "admin.html")
+
+
 @app.get("/api/state")
 def api_state():
     return {"state": db.get_state()}
@@ -117,7 +125,6 @@ async def api_vote(body: Vote):
     if result == db.VOTE_BAD_TOKEN:
         raise HTTPException(status_code=400, detail="Invalid or already used token")
 
-    # Broadcast only state and aggregate turnout, never candidate or token details.
     await live_clients.broadcast()
     return {"ok": True}
 
@@ -126,8 +133,8 @@ async def api_vote(body: Vote):
 async def websocket_live(websocket: WebSocket):
     await live_clients.connect(websocket)
     try:
-        # Client messages are intentionally ignored; this socket is read-only.
         while True:
+            # The client sends a tiny keepalive; no client data is stored.
             await websocket.receive_text()
     except WebSocketDisconnect:
         await live_clients.disconnect(websocket)
