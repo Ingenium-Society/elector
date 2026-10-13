@@ -122,9 +122,14 @@ are changing it at the same time.
 ## 6. Quick facts
 
 - Run these from the `offline/` folder: `cd offline`
-- Run the server: `uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-access-log`
-  (`--no-access-log` is required: uvicorn's default log writes each voter's IP next to
-  `POST /api/vote`, which breaks rule 2.)
+- Run the server (ONE process, never `--workers`):
+  `ADMIN_PASSWORD=... uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-access-log --log-level warning`
+  Both log flags are required: uvicorn's default log writes each voter's IP next to
+  `POST /api/vote` and (checked on a real server) next to every `WebSocket /ws` connection,
+  and `--no-access-log` alone does not stop the WebSocket lines. Both break rule 2.
+  Without `ADMIN_PASSWORD`, the admin routes are switched off (503).
+- Admin (server laptop only, header `X-Admin-Password`): `POST /admin/open`, `/admin/close`,
+  `/admin/reveal`, `GET /admin/status`. Steps only go forward; out of order gives 409.
 - Tests: `pytest` (only `offline/tests/` is collected)
 - Database: `offline/data/election.sqlite` (git-ignored; override with env var `VOTING_DB`)
 - States: `IDLE`, `OPEN`, `CLOSED`, `RESULTS` (one direction only)
@@ -132,10 +137,11 @@ are changing it at the same time.
 
 ## 7. Current status
 
-Stages 1 and 2 are done and merged (schema, config, `GET /api/state`, candidates).
-Stage 3 (tokens and voting) is built on branch `stage-3-tokens`, waiting for a second human
-reviewer: `scripts/generate_tokens.py`, `POST /api/token/check`, `POST /api/vote`.
-Everything after Stage 3 is not started. See `docs/ROADMAP.md`.
+Stages 1, 2 and 3 are done and merged (schema, config, state, candidates, tokens, voting).
+Stage 4 (admin Open/Close/Reveal and WebSocket push) is built on branch `stage-4-admin`,
+waiting for a second human reviewer: `app/admin.py`, `app/realtime.py`, `db.change_state()`,
+`GET /ws`. There is still no admin page and no voter screen for tokens and candidates in the
+repo (see the handoff log). Everything after Stage 4 is not started. See `docs/ROADMAP.md`.
 
 Repo restructured on 2026-10-11: the code now lives in `offline/`, and `online/` is a
 placeholder with no code (branch `restructure-offline-online`).
@@ -151,6 +157,46 @@ Keep it short. Format:
 - State: what works, what is untested or broken
 - Next: what should happen next / what is blocked
 ```
+
+### 2026-10-13, project owner (Claude), branch `stage-4-admin`
+- Done (3 steps, 130 tests passing):
+  1. `db.change_state(new_state)`: only the next step of IDLE -> OPEN -> CLOSED -> RESULTS;
+     skipping, going back, repeating and unknown names raise `BadTransition`. One conditional
+     `UPDATE ... WHERE value = old`, so two simultaneous presses cannot both win.
+  2. `app/admin.py`: `POST /admin/open|close|reveal`, `GET /admin/status`. Not from localhost or
+     `::1` -> 403 (checked first); no `ADMIN_PASSWORD` set -> 503; wrong or missing
+     `X-Admin-Password` header -> 401 (password in the URL is not accepted); step out of order
+     -> 409. Status returns only `state`, `tokens_issued`, `votes_cast`.
+  3. `app/realtime.py` + `GET /ws`: every connected page gets `{"state": ...}` on connect and after
+     every successful change. It sends what the database says, under a lock, so a page can never
+     get an old state after a new one. Each send has a 2 s timeout, so a frozen phone is dropped
+     and cannot delay the others. Nothing about who connected is stored.
+- State: I broke each check on purpose (localhost, password, empty password, 409, no broadcast,
+  broadcast on refusal, dead client, no timeout) and a test failed every time (one was missed
+  at first, dropping a broken phone, and got a new test). Real uvicorn run with 3 WebSocket clients, one through the
+  network address: phone admin call 403, wrong password 401, out of order 409, vote OK while open
+  and 403 after Close, all pages heard OPEN within about 1 ms of each other.
+- NEEDS A SECOND HUMAN REVIEWER (section 4: logging, and the admin gate for rule 9). Please read
+  `app/admin.py` `require_admin()`, `app/realtime.py` and the three test files.
+- Found: uvicorn logs `"WebSocket /ws" [accepted]` WITH the client address even when
+  `--no-access-log` is set. Only `--log-level warning` stops it. Both flags are now in README and
+  section 6. Anyone starting the server another way breaks rule 2.
+- Not done on purpose: an admin page and the voter screens (token entry, waiting, candidate
+  buttons, confirm). The "votes cast" count is not pushed over `/ws`. Rate limiting for wrong admin
+  passwords, a cap on connections and on message size are Stage 7.
+- Known limits: (a) Open works even with no candidates or no tokens, and because states only go
+  forward the election could not be reopened; consider refusing Open until the election is set up
+  (needs a human decision on what "set up" means). (b) the connection list is in one process:
+  never run `--workers`. (c) the auto-close idea (close when every verified token has voted)
+  is still undecided; it needs a `verified` flag and would change `token/check` and `cast_vote`.
+- Heads-up: the working folder also holds uncommitted, unreviewed work from an earlier session
+  (dated 2026-10-13 07:04): a rewritten voter page `offline/app/static/index.html` (token entry,
+  WebSocket, candidate buttons) and a new `offline/app/static/admin.html`. They are NOT in this
+  branch. A first commit of this branch included them by mistake and the next commit took them
+  out again (history shows both); a copy of the files was kept. Whoever owns them should
+  review them against the routes above before they are committed.
+- Next: review and merge `stage-4-admin`; then decide what to do with those two pages
+  (Stage 5 voter UI plus an admin page), and the auto-close question.
 
 ### 2026-10-13, project owner (Claude), branch `stage-3-tokens`
 - Done (3 commits, one per step, 74 tests passing):

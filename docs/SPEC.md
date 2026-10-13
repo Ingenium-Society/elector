@@ -192,7 +192,7 @@ The server also verifies `state == OPEN` and that `candidate_id` exists before r
 | Method | Path | Access | Purpose |
 |---|---|---|---|
 | GET | `/` | Voters | Voter page |
-| WS | `/ws` | Voters | Pushes state changes (`IDLE/OPEN/CLOSED/RESULTS`) and "votes cast" count |
+| WS | `/ws` | Voters | Pushes state changes (`IDLE/OPEN/CLOSED/RESULTS`) as `{"state": ...}`. The "votes cast" count is not pushed yet (planned) |
 | GET | `/api/state` | Voters | Current state (fallback if WebSocket drops) |
 | POST | `/api/token/check` | Voters (IDLE or OPEN) | `{token}` returns `{valid: true/false}`. Does **not** burn the token. Rate limited. |
 | GET | `/api/candidates` | Voters (when OPEN) | Candidate list |
@@ -203,7 +203,11 @@ The server also verifies `state == OPEN` and that `candidate_id` exists before r
 | GET | `/admin/status` | Admin | Votes cast / tokens issued, state |
 | POST | `/admin/export` | Admin | Generate results files |
 
-**Admin protection:** admin routes accept requests from `127.0.0.1` only **and** require an admin password. Voters on the LAN must not be able to reach them.
+**Admin protection:** admin routes accept requests from `127.0.0.1` / `::1` only **and** require an admin password. Voters on the LAN must not be able to reach them.
+- The password comes from the `ADMIN_PASSWORD` environment variable and is sent in the `X-Admin-Password` header, never in the URL. With no password set, admin answers 503.
+- Answers: 403 not from the laptop (checked first), 401 wrong password, 409 step out of order (nothing changes, nothing is pushed), 200 `{"state": ...}`.
+- `GET /admin/status` returns only `state`, `tokens_issued` and `votes_cast`, never per-candidate numbers.
+- The server must run as ONE process: the `/ws` connection list is in memory.
 
 **Server-side validation on every vote:** state is OPEN, token valid and unused, candidate valid. The UI disabling buttons is a convenience, never a security control.
 

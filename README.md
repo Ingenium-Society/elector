@@ -53,8 +53,39 @@ python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt  # needs internet: do this BEFORE election day
 pytest
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-access-log
 ```
+
+### Run the server
+
+```bash
+ADMIN_PASSWORD='a-long-password-only-the-admin-knows' \
+  uvicorn app.main:app --host 0.0.0.0 --port 8000 --no-access-log --log-level warning
+```
+
+On Windows (PowerShell): `$env:ADMIN_PASSWORD='...'` first, then the `uvicorn` line on one line.
+
+- **Both log flags are required.** Without them uvicorn prints each voter's address
+  (next to `POST /api/vote` and next to every `WebSocket /ws` connection), which breaks the
+  anonymity rule. `--no-access-log` alone is not enough for the WebSocket lines.
+- **Run ONE server process.** Never add `--workers`: the list of connected voter pages lives
+  in that one process's memory.
+- **No `ADMIN_PASSWORD`, no admin.** The admin routes answer 503 until it is set.
+
+### Open, close and reveal (from the server laptop only)
+
+Voters' phones are refused (403), even with the right password. The password goes in a
+header, never in the web address.
+
+```bash
+curl -X POST -H "X-Admin-Password: $ADMIN_PASSWORD" http://127.0.0.1:8000/admin/open
+curl        -H "X-Admin-Password: $ADMIN_PASSWORD" http://127.0.0.1:8000/admin/status
+curl -X POST -H "X-Admin-Password: $ADMIN_PASSWORD" http://127.0.0.1:8000/admin/close
+curl -X POST -H "X-Admin-Password: $ADMIN_PASSWORD" http://127.0.0.1:8000/admin/reveal
+```
+
+The steps only go forward: IDLE, OPEN, CLOSED, RESULTS. A step out of order answers 409
+and changes nothing. There is no way back, so check candidates and tokens before Open.
+Every voter page that is connected to `/ws` hears each change at the same moment.
 
 ## Golden rules
 
