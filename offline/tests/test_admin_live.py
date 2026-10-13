@@ -22,6 +22,11 @@ def admin(client, action, password="test-secret"):
     return client.post(f"/admin/{action}", headers=headers)
 
 
+def set_state(state):
+    with db.connect() as conn:
+        conn.execute("UPDATE config SET value = ? WHERE key = 'state'", (state,))
+
+
 def test_admin_state_machine_and_results(client):
     db.add_candidate("Alpha")
     db.add_candidate("Beta")
@@ -39,11 +44,15 @@ def test_admin_state_machine_and_results(client):
     ]
 
 
-@pytest.mark.parametrize("action", ["open", "close", "reveal"])
-def test_admin_transition_rejects_wrong_state(client, action):
+@pytest.mark.parametrize(
+    ("action", "initial_state"),
+    [("open", "OPEN"), ("close", "IDLE"), ("reveal", "IDLE")],
+)
+def test_admin_transition_rejects_wrong_state(client, action, initial_state):
+    set_state(initial_state)
     response = admin(client, action)
     assert response.status_code == 409
-    assert db.get_state() == "IDLE"
+    assert db.get_state() == initial_state
 
 
 def test_admin_routes_require_password(client):
@@ -62,8 +71,8 @@ def test_live_websocket_starts_with_state_and_aggregate_counts(client):
     with client.websocket_connect("/ws") as websocket:
         payload = websocket.receive_json()
         assert payload == {"state": "IDLE", "votes_cast": 0, "tokens_issued": 0}
-        assert "candidate" not in str(payload).lower()
-        assert "token" not in str(payload).lower()
+        assert set(payload) == {"state", "votes_cast", "tokens_issued"}
+        assert "candidate" not in payload
         admin(client, "open")
         update = websocket.receive_json()
         assert update["state"] == "OPEN"
