@@ -1,0 +1,27 @@
+name: Offline tests
+
+on:
+  push:
+    paths:
+      - "offline/**"
+      - ".github/workflows/tests.yml"
+  pull_request:
+    paths:
+      - "offline/**"
+      - ".github/workflows/tests.yml"
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: offline
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: offline/requirements.txt
+      - run: python -m pip install -r requirements.txt
+      - run: PYTHONPATH=. pytest -q

@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Election Admin</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, sans-serif; color: #182230; background: #f3f6fa; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 1rem; box-sizing: border-box; }
+    main { width: min(100%, 34rem); background: white; border: 1px solid #dce3ec; border-radius: 1.25rem; padding: clamp(1.25rem, 5vw, 2rem); box-sizing: border-box; }
+    h1 { margin-top: 0; } label { display: block; font-weight: 650; margin: 1rem 0 .4rem; }
+    input, button { width: 100%; min-height: 3rem; border-radius: .7rem; font: inherit; box-sizing: border-box; padding: .7rem; }
+    input { border: 1px solid #aab7c7; } button { border: 0; margin-top: .65rem; background: #1d4ed8; color: white; font-weight: 700; cursor: pointer; }
+    button.secondary { background: #e8edf5; color: #182230; } button.danger { background: #a32929; }
+    button:disabled { opacity: .5; cursor: not-allowed; } .panel { background: #edf3fa; border-radius: .7rem; padding: 1rem; margin: 1rem 0; }
+    .muted { color: #586779; } .error { color: #b42318; min-height: 1.5em; } [hidden] { display: none !important; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Election admin</h1>
+  <p class="muted">This page is only served on the server laptop. Keep the admin password private.</p>
+  <section id="login">
+    <label for="password">Admin password</label>
+    <input id="password" type="password" autocomplete="current-password">
+    <button id="connect">Unlock admin controls</button>
+  </section>
+  <p id="message" class="error" role="alert"></p>
+  <section id="dashboard" hidden>
+    <div class="panel">
+      <p>Current state: <strong id="state">—</strong></p>
+      <p>Votes cast: <strong id="votes">0</strong></p>
+      <p>Tokens issued: <strong id="tokens">0</strong></p>
+    </div>
+    <button id="open">Open voting</button>
+    <button id="close" class="danger">Close voting</button>
+    <button id="reveal">Reveal results</button>
+    <button id="refresh" class="secondary">Refresh status</button>
+    <pre id="results" class="panel" hidden></pre>
+    <button id="lock" class="secondary">Lock admin page</button>
+  </section>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  let password = "";
+  async function request(path, method = "GET") {
+    const response = await fetch(path, {method, headers: {"X-Admin-Password": password}});
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || "Request failed.");
+    return data;
+  }
+  async function refresh() {
+    const data = await request("/admin/status");
+    $("state").textContent = data.state;
+    $("votes").textContent = data.votes_cast;
+    $("tokens").textContent = data.tokens_issued;
+    $("open").disabled = data.state !== "IDLE";
+    $("close").disabled = data.state !== "OPEN";
+    $("reveal").disabled = data.state !== "CLOSED";
+  }
+  async function action(path) {
+    $("message").textContent = "";
+    try {
+      const data = await request(path, "POST");
+      if (data.results) {
+        $("results").hidden = false;
+        $("results").textContent = "Final totals\n\n" + data.results.map(row => row.name + ": " + row.votes).join("\n");
+      }
+      await refresh();
+    } catch (error) { $("message").textContent = error.message; }
+  }
+  $("connect").addEventListener("click", async () => {
+    password = $("password").value;
+    $("message").textContent = "";
+    try {
+      await refresh();
+      $("login").hidden = true;
+      $("dashboard").hidden = false;
+    } catch (error) { password = ""; $("message").textContent = error.message; }
+  });
+  $("password").addEventListener("keydown", event => { if (event.key === "Enter") $("connect").click(); });
+  $("open").addEventListener("click", () => action("/admin/open"));
+  $("close").addEventListener("click", () => action("/admin/close"));
+  $("reveal").addEventListener("click", () => {
+    if (confirm("Close the voting process and reveal final totals? This cannot be undone.")) action("/admin/reveal");
+  });
+  $("refresh").addEventListener("click", async () => {
+    try { await refresh(); $("message").textContent = ""; }
+    catch (error) { $("message").textContent = error.message; }
+  });
+  $("lock").addEventListener("click", () => {
+    password = ""; $("password").value = ""; $("dashboard").hidden = true; $("login").hidden = false;
+    $("results").hidden = true; $("results").textContent = "";
+  });
+})();
+</script>
+</body>
+</html>

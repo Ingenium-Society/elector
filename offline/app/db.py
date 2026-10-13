@@ -7,7 +7,7 @@ from app import config
 
 def connect():
     config.DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(config.DB_PATH)
+    conn = sqlite3.connect(config.DB_PATH, timeout=10)
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
@@ -25,6 +25,39 @@ def get_state():
     with connect() as conn:
         row = conn.execute("SELECT value FROM config WHERE key = 'state'").fetchone()
     return row[0]
+
+
+def transition_state(expected, target):
+    """Change state only if it is the expected state; never skip a stage."""
+    with connect() as conn:
+        cursor = conn.execute(
+            "UPDATE config SET value = ? WHERE key = 'state' AND value = ?",
+            (target, expected),
+        )
+        return cursor.rowcount == 1
+
+
+def election_counts():
+    """Return aggregate counts only; never associate a token with a ballot."""
+    with connect() as conn:
+        votes = conn.execute("SELECT COUNT(*) FROM votes").fetchone()[0]
+        issued = conn.execute("SELECT COUNT(*) FROM tokens").fetchone()[0]
+    return {"votes_cast": votes, "tokens_issued": issued}
+
+
+def result_totals():
+    """Return candidate totals for the post-election reveal screen only."""
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT candidates.id, candidates.name, COUNT(votes.id)
+            FROM candidates
+            LEFT JOIN votes ON votes.candidate_id = candidates.id
+            GROUP BY candidates.id, candidates.name
+            ORDER BY candidates.id
+            """
+        ).fetchall()
+    return [{"id": row[0], "name": row[1], "votes": row[2]} for row in rows]
 
 
 def add_candidate(name):
@@ -85,16 +118,10 @@ def cast_vote(token_hash, candidate_id):
     else. Nothing here links the token to the vote, and nothing is logged.
     """
     conn = connect()
-    # isolation_level = None: Python will not start transactions behind our back,
-    # so the BEGIN / COMMIT / ROLLBACK below are exactly what runs.
     conn.isolation_level = None
     try:
-        # IMMEDIATE takes the write lock now, so two votes can never be
-        # processed at the same moment: they queue up and go one by one.
         conn.execute("BEGIN IMMEDIATE")
         try:
-            # Checked inside the transaction so a vote cannot slip in
-            # after the admin pressed Close.
             state = conn.execute(
                 "SELECT value FROM config WHERE key = 'state'"
             ).fetchone()[0]
@@ -102,8 +129,6 @@ def cast_vote(token_hash, candidate_id):
                 conn.execute("ROLLBACK")
                 return VOTE_NOT_OPEN
 
-            # "AND used = 0" is what makes double voting impossible: the second
-            # try finds no unused row, so zero rows change.
             burned = conn.execute(
                 "UPDATE tokens SET used = 1 WHERE token_hash = ? AND used = 0",
                 (token_hash,),
@@ -119,8 +144,6 @@ def cast_vote(token_hash, candidate_id):
             conn.execute("COMMIT")
             return VOTE_OK
         except BaseException:
-            # Any surprise (for example an unknown candidate): undo everything,
-            # so the token is NOT burned, then let the error continue.
             if conn.in_transaction:
                 conn.execute("ROLLBACK")
             raise

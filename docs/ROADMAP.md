@@ -11,11 +11,13 @@ Suggested: one branch and one pull request per stage.
 | 1 | Database schema, config, and `GET /api/state` with smoke tests | `pytest` passes; page shows the state |
 | 2 | Candidates: add the 3 candidates to the DB | `GET /api/candidates` returns 3 names |
 | 3 | Tokens and voting: `generate_tokens.py`, `POST /api/token/check`, `POST /api/vote` with the atomic transaction | Double-vote test passes; vote only accepted when state is OPEN |
-| 4 | State control: admin Open/Close/Reveal (localhost + password), WebSocket pushing state to voters, candidate buttons + confirm step | Pressing Open switches all connected pages instantly |
-| 5 | Voter UI polish: token entry, "Verified, waiting" screen, errors, reconnect banner | Works on old and new phones, offline |
+| 4 | Admin Open/Close/Reveal, localhost-only password-protected admin panel, WebSocket state/turnout pushes, candidate selection + confirmation | Admin transitions are guarded; connected voter pages update; admin can reveal totals |
+| 5 | Voter UI polish: accessibility, clear errors, reconnect behavior, and real-phone/browser compatibility checks | Works on old and new phones, offline |
 | 6 | Results and audit: reconciliation, `export_results.py`, SHA-256 of DB | Counts reconcile; XLSX produced |
 | 7 | Hardening: load test (120 clients), anonymity audit (DB, logs, exports), rate limiting | All tests in SPEC section 12 pass |
 | 8 | Dry runs: 30+ real phones, then full rehearsal with the Class Representative Council | Sign-off |
+
+**Stage 4 implementation:** branch `stage-4-admin-controls` (PR pending). Code is not merged or production-approved until tests and review pass.
 
 **Review rule:** anything touching the vote transaction, the votes table, logging,
 or exports needs a second person (or a teacher/IT staff) to review it before merging.

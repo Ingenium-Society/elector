@@ -132,10 +132,11 @@ are changing it at the same time.
 
 ## 7. Current status
 
-Stages 1 and 2 are done and merged (schema, config, `GET /api/state`, candidates).
-Stage 3 (tokens and voting) is built on branch `stage-3-tokens`, waiting for a second human
-reviewer: `scripts/generate_tokens.py`, `POST /api/token/check`, `POST /api/vote`.
-Everything after Stage 3 is not started. See `docs/ROADMAP.md`.
+Stages 0 to 3 are merged into `main`. Stage 4 is implemented on branch `stage-4-admin-controls`
+and awaits test execution and review. It adds guarded admin state transitions, a localhost-only
+admin page, aggregate turnout status, WebSocket updates, and the initial token-to-vote UI flow.
+Do not call Stage 4 complete until tests pass and the pull request has been reviewed and merged.
+See `docs/ROADMAP.md`.
 
 Repo restructured on 2026-10-11: the code now lives in `offline/`, and `online/` is a
 placeholder with no code (branch `restructure-offline-online`).
@@ -151,6 +152,20 @@ Keep it short. Format:
 - State: what works, what is untested or broken
 - Next: what should happen next / what is blocked
 ```
+
+### 2026-10-13, ChatGPT, branch `stage-4-admin-controls`
+- Done: added guarded `IDLE -> OPEN -> CLOSED -> RESULTS` transitions, aggregate admin status,
+  final candidate totals, localhost-only/password-protected admin endpoints and dashboard,
+  WebSocket broadcasts for state/turnout, and the initial token verification / candidate / confirm
+  voter flow. Added `offline/tests/test_admin_live.py` and claimed Stage 4 in the roadmap.
+- State: changes are committed to this branch, not merged. Tests have **not been run in this
+  environment**; inspect and run `cd offline && pytest` before merging. The new admin tests
+  explicitly use a loopback test client. WebSocket, state-transition, and frontend behavior need
+  manual verification too.
+- Security note: set a strong `ADMIN_PASSWORD` environment variable before use. Admin page and
+  routes reject non-loopback HTTP clients. Continue to launch Uvicorn with `--no-access-log`.
+- Next: run tests, fix any failures, review the localhost/admin assumptions and browser behavior,
+  then open/merge the pull request only after a second human review where required.
 
 ### 2026-10-13, project owner (Claude), branch `stage-3-tokens`
 - Done (3 commits, one per step, 74 tests passing):
