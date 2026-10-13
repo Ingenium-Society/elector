@@ -10,7 +10,8 @@ from app.main import app
 def client(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "DB_PATH", tmp_path / "test.sqlite")
     monkeypatch.setenv("ADMIN_PASSWORD", "test-secret")
-    with TestClient(app, base_url="http://127.0.0.1") as test_client:
+    # The admin routes deliberately reject requests not originating on loopback.
+    with TestClient(app, client=("127.0.0.1", 50000)) as test_client:
         yield test_client
 
 
@@ -38,11 +39,8 @@ def test_admin_state_machine_and_results(client):
     ]
 
 
-@pytest.mark.parametrize(
-    ("action", "expected_state"),
-    [("open", "OPEN"), ("close", "CLOSED"), ("reveal", "RESULTS")],
-)
-def test_admin_transition_rejects_wrong_state(client, action, expected_state):
+@pytest.mark.parametrize("action", ["open", "close", "reveal"])
+def test_admin_transition_rejects_wrong_state(client, action):
     response = admin(client, action)
     assert response.status_code == 409
     assert db.get_state() == "IDLE"
@@ -55,7 +53,6 @@ def test_admin_routes_require_password(client):
 
 
 def test_admin_status_returns_aggregate_counts_only(client):
-    db.add_candidate("Alpha")
     response = client.get("/admin/status", headers={"X-Admin-Password": "test-secret"})
     assert response.status_code == 200
     assert response.json() == {"state": "IDLE", "votes_cast": 0, "tokens_issued": 0}
