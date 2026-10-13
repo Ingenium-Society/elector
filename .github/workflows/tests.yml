@@ -24,4 +24,4 @@ jobs:
           cache: pip
           cache-dependency-path: offline/requirements.txt
       - run: python -m pip install -r requirements.txt
-      - run: pytest -q
+      - run: PYTHONPATH=. pytest -q
