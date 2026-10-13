@@ -3,61 +3,116 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f2268">
   <title>School Election</title>
+  <link rel="icon" type="image/png" href="/logo.png">
   <style>
-    :root { font-family: system-ui, -apple-system, sans-serif; color: #182230; background: #f3f6fa; }
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 1rem; box-sizing: border-box; }
-    main { width: min(100%, 30rem); background: white; border: 1px solid #dce3ec; border-radius: 1.25rem; padding: clamp(1.25rem, 5vw, 2rem); box-sizing: border-box; box-shadow: 0 12px 36px #1c355015; }
-    h1 { margin: 0 0 .4rem; font-size: 1.65rem; } p { line-height: 1.5; }
-    label { display: block; text-align: left; font-weight: 650; margin: 1.25rem 0 .4rem; }
-    input, button { width: 100%; min-height: 3rem; border-radius: .7rem; font: inherit; box-sizing: border-box; }
-    input { border: 1px solid #aab7c7; padding: .75rem; text-transform: uppercase; letter-spacing: .08em; }
-    button { border: 0; background: #1d4ed8; color: white; font-weight: 700; padding: .8rem 1rem; cursor: pointer; margin-top: .65rem; }
-    button.secondary { background: #e8edf5; color: #182230; }
-    button:disabled { opacity: .55; cursor: not-allowed; }
-    .muted { color: #586779; } .status { border-radius: .65rem; padding: .7rem .85rem; background: #edf3fa; margin: 1rem 0; text-align: left; }
-    .error { color: #b42318; min-height: 1.4em; } .candidate { text-align: left; background: white; color: #182230; border: 1px solid #cbd5e1; }
-    .candidate[aria-pressed="true"] { border: 2px solid #1d4ed8; background: #eff6ff; }
-    .small { font-size: .9rem; } [hidden] { display: none !important; }
+    /* Colours are taken from the school logo: deep navy and warm gold.
+       No external fonts or files: everything is served from the laptop. */
+    :root {
+      --navy: #0f2268; --navy-dark: #0a1748; --gold: #f6d463; --gold-soft: #fff6d6;
+      --ink: #182230; --muted: #526173; --line: #d5dcea; --page: #eef2f9;
+      --ok-bg: #e8f6ee; --ok-ink: #11643a; --err: #b42318;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: var(--ink); background: var(--page);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; padding: 1rem; display: flex; align-items: center; justify-content: center;
+           background: linear-gradient(180deg, var(--navy) 0, var(--navy) 14rem, var(--page) 14rem); }
+    main { width: 100%; max-width: 30rem; background: #fff; border-radius: 1.25rem; overflow: hidden;
+           box-shadow: 0 18px 44px rgba(10, 23, 72, .22); }
+    header { background: #fff; text-align: center; padding: 1.5rem 1.25rem 1.1rem; border-bottom: 4px solid var(--gold); }
+    .logo { display: block; width: 8.5rem; height: 8.5rem; margin: 0 auto .75rem; background: #fff; }
+    .school { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: .85rem; font-weight: 700;
+              letter-spacing: .14em; text-transform: uppercase; color: var(--navy); }
+    h1 { margin: .25rem 0 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.7rem; line-height: 1.2; color: var(--navy); }
+    .content { padding: 1.25rem clamp(1.1rem, 5vw, 1.75rem) 1.6rem; }
+    p { line-height: 1.55; margin: .6rem 0; }
+    .lead { margin-top: 0; }
+    .muted { color: var(--muted); } .small { font-size: .9rem; }
+
+    .conn { display: flex; align-items: center; justify-content: center; font-size: .85rem; color: var(--muted);
+            background: #f3f6fb; border-radius: 99px; padding: .45rem .9rem; margin: 0 0 1rem; text-align: center; }
+    .conn::before { content: ""; flex: none; width: .55rem; height: .55rem; border-radius: 50%; background: #f59e0b; margin-right: .55rem; }
+    .conn.ok::before { background: #16a34a; } .conn.bad::before { background: var(--err); }
+
+    label { display: block; text-align: left; font-weight: 700; margin: .5rem 0 .4rem; color: var(--navy); }
+    input, button { width: 100%; min-height: 3.2rem; border-radius: .8rem; font: inherit; }
+    input { border: 2px solid #b7c2d6; padding: .75rem .9rem; background: #fff; color: var(--ink); text-transform: uppercase;
+            letter-spacing: .2em; font-size: 1.15rem; text-align: center; font-weight: 600; }
+    input::placeholder { letter-spacing: .02em; font-size: 1rem; text-transform: none; font-weight: 400; color: #8793a6; }
+    input:focus { border-color: var(--navy); }
+    button { border: 2px solid var(--navy); background: var(--navy); color: #fff; font-weight: 700; padding: .8rem 1rem;
+             cursor: pointer; margin-top: .7rem; -webkit-tap-highlight-color: transparent; }
+    button:active:not(:disabled) { background: var(--navy-dark); }
+    button.secondary { background: #fff; color: var(--navy); border-color: #b7c2d6; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    input:focus-visible, button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+    input:focus-visible { outline-color: var(--navy); outline-offset: 1px; }
+
+    .status { border-radius: .8rem; padding: .85rem 1rem; background: #eef3fb; border-left: 5px solid var(--navy);
+              margin: .9rem 0; text-align: left; line-height: 1.5; }
+    .status.ok { background: var(--ok-bg); border-left-color: #16a34a; color: var(--ok-ink); }
+    .status.note { background: var(--gold-soft); border-left-color: var(--gold); color: #5c4700; }
+    .status.choice { font-size: 1.2rem; font-weight: 700; color: var(--navy); background: var(--gold-soft); border-left-color: var(--gold); }
+    .error { color: var(--err); min-height: 1.4em; font-weight: 600; }
+
+    .candidate { display: flex; align-items: center; text-align: left; background: #fff; color: var(--ink);
+                 border: 2px solid var(--line); font-size: 1.1rem; padding: .9rem 1rem; }
+    .candidate::before { content: ""; flex: none; width: 1.4rem; height: 1.4rem; border-radius: 50%; border: 2px solid var(--navy);
+                         background: #fff; margin-right: .9rem; }
+    .candidate[aria-pressed="true"] { border-color: var(--navy); background: #eef3fb; color: var(--navy); }
+    .candidate[aria-pressed="true"]::before { background: var(--navy); box-shadow: inset 0 0 0 4px #fff; }
+    .candidate:active:not(:disabled) { background: #e3eaf7; }
+
+    [hidden] { display: none !important; }
+    footer { text-align: center; color: var(--muted); font-size: .8rem; padding: 0 1rem 1.1rem; }
   </style>
 </head>
 <body>
 <main>
-  <h1>School Election</h1>
-  <p class="muted">Use your paper token to verify before voting.</p>
-  <div id="connection" class="status" role="status">Connecting to election server…</div>
-  <section id="token-screen">
-    <label for="token">Election token</label>
-    <input id="token" maxlength="64" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Enter your token">
-    <button id="verify">Verify token</button>
-    <p id="token-error" class="error" role="alert"></p>
-  </section>
-  <section id="waiting-screen" hidden>
-    <div class="status"><strong>Verified.</strong> Your token is valid. Keep this page open and wait for voting to start.</div>
-    <button id="change-token" class="secondary">Re-enter token</button>
-  </section>
-  <section id="vote-screen" hidden>
-    <p><strong>Choose one candidate.</strong> You will confirm your choice on the next screen.</p>
-    <div id="candidates"></div>
-    <button id="continue" disabled>Review choice</button>
-  </section>
-  <section id="confirm-screen" hidden>
-    <p>Please check your selection carefully.</p>
-    <div id="choice" class="status"></div>
-    <button id="submit-vote">Confirm and submit vote</button>
-    <button id="back" class="secondary">Back</button>
-    <p id="vote-error" class="error" role="alert"></p>
-  </section>
-  <section id="done-screen" hidden>
-    <div class="status"><strong>Your vote has been recorded.</strong> Thank you.</div>
-    <p class="muted small">No receipt or confirmation code is issued.</p>
-  </section>
-  <section id="closed-screen" hidden>
-    <div class="status"><strong>Voting is closed.</strong> No more votes can be submitted.</div>
-  </section>
-  <section id="results-screen" hidden>
-    <div class="status"><strong>The election is finished.</strong> Results are being handled by the election committee.</div>
-  </section>
+  <header>
+    <img class="logo" src="/logo.png" alt="Global Darussalam Academy logo" width="136" height="136">
+    <p class="school">Global Darussalam Academy</p>
+    <h1>School Election</h1>
+  </header>
+  <div class="content">
+    <p class="muted lead">Use your paper token to verify before voting.</p>
+    <div id="connection" class="conn" role="status">Connecting to election server…</div>
+    <section id="token-screen">
+      <label for="token">Election token</label>
+      <input id="token" maxlength="64" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Enter your token">
+      <button id="verify">Verify token</button>
+      <p id="token-error" class="error" role="alert"></p>
+    </section>
+    <section id="waiting-screen" hidden>
+      <div class="status ok"><strong>Verified.</strong> Your token is valid. Keep this page open and wait for voting to start.</div>
+      <button id="change-token" class="secondary">Re-enter token</button>
+    </section>
+    <section id="vote-screen" hidden>
+      <p class="lead"><strong>Choose one candidate.</strong> You will confirm your choice on the next screen.</p>
+      <div id="candidates"></div>
+      <button id="continue" disabled>Review choice</button>
+    </section>
+    <section id="confirm-screen" hidden>
+      <p class="lead">Please check your selection carefully. You cannot change it after submitting.</p>
+      <div id="choice" class="status choice"></div>
+      <button id="submit-vote">Confirm and submit vote</button>
+      <button id="back" class="secondary">Back</button>
+      <p id="vote-error" class="error" role="alert"></p>
+    </section>
+    <section id="done-screen" hidden>
+      <div class="status ok"><strong>Your vote has been recorded.</strong> Thank you.</div>
+      <p class="muted small">No receipt or confirmation code is issued.</p>
+    </section>
+    <section id="closed-screen" hidden>
+      <div class="status note"><strong>Voting is closed.</strong> No more votes can be submitted.</div>
+    </section>
+    <section id="results-screen" hidden>
+      <div class="status"><strong>The election is finished.</strong> Results are being handled by the election committee.</div>
+    </section>
+  </div>
+  <footer>Your vote is secret. This system never links a token to a choice.</footer>
 </main>
 <script>
 (() => {
@@ -76,7 +131,11 @@
     if (selected !== null) { $("choice").textContent = "Your selection: " + selected.name; return show("confirm-screen"); }
     show("vote-screen");
   }
-  function connection(text) { $("connection").textContent = text; }
+  // The coloured dot follows the text: green when connected, red when interrupted.
+  function connection(text) {
+    $("connection").textContent = text;
+    $("connection").className = "conn" + (text.indexOf("Connected") === 0 ? " ok" : text.indexOf("Connection") === 0 ? " bad" : "");
+  }
   async function loadCandidates() {
     const response = await fetch("/api/candidates");
     if (!response.ok) throw new Error("Candidates are not available yet.");
