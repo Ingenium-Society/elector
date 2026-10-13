@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Election Admin</title>
+  <!-- Only served to the server laptop itself (localhost). No internet links. -->
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 520px; margin: 0 auto;
+           padding: 1.5rem 1rem; font-size: 1.1rem; line-height: 1.4; }
+    [hidden] { display: none !important; }
+    input, button { font: inherit; width: 100%; box-sizing: border-box;
+                    padding: 0.8rem; margin-top: 0.6rem; border-radius: 0.5rem; }
+    input { border: 2px solid #888; }
+    button { border: 2px solid #1a56db; background: #1a56db; color: #fff; cursor: pointer; }
+    button:disabled { opacity: 0.35; cursor: default; }
+    .error { color: #b00020; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    td { padding: 0.4rem; border-bottom: 1px solid #ccc; }
+    td:last-child { text-align: right; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Election Admin</h1>
+
+  <form id="unlock" >
+    <label for="password">Admin password</label>
+    <input id="password" type="password" autocomplete="off">
+    <button type="submit">Unlock</button>
+  </form>
+
+  <section id="panel" hidden>
+    <table>
+      <tr><td>State</td><td id="s-state">-</td></tr>
+      <tr><td>Tokens issued</td><td id="s-tokens">-</td></tr>
+      <tr><td>Votes cast</td><td id="s-votes">-</td></tr>
+    </table>
+    <button id="btn-open">1. Open voting</button>
+    <button id="btn-close">2. Close voting</button>
+    <button id="btn-reveal">3. Reveal results (ends the election)</button>
+  </section>
+
+  <p id="message" class="error" hidden></p>
+
+  <script>
+    // The password lives only in this tab's memory. It is never saved.
+    let password = "";
+    const $ = (id) => document.getElementById(id);
+
+    function say(text) { $("message").textContent = text; $("message").hidden = (text === ""); }
+
+    async function call(method, path) {
+      const response = await fetch(path, { method, headers: { "X-Admin-Password": password } });
+      let body = {};
+      try { body = await response.json(); } catch (e) {}
+      return { ok: response.ok, status: response.status, body };
+    }
+
+    async function refresh() {
+      let r;
+      try { r = await call("GET", "/admin/status"); }
+      catch (e) { say("Cannot reach the server."); return false; }
+      if (!r.ok) {
+        say(r.status === 401 ? "Wrong password." : (r.body.detail || "Admin is not available."));
+        return false;
+      }
+      $("s-state").textContent = r.body.state;
+      $("s-tokens").textContent = r.body.tokens_issued;
+      $("s-votes").textContent = r.body.votes_cast;
+      // Each button works only in the one state where it makes sense.
+      $("btn-open").disabled = (r.body.state !== "IDLE");
+      $("btn-close").disabled = (r.body.state !== "OPEN");
+      $("btn-reveal").disabled = (r.body.state !== "CLOSED");
+      return true;
+    }
+
+    $("unlock").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      password = $("password").value;
+      say("");
+      if (await refresh()) {
+        $("unlock").hidden = true;
+        $("panel").hidden = false;
+        setInterval(refresh, 2000);
+      }
+    });
+
+    async function act(path, question) {
+      if (!confirm(question)) return;
+      say("");
+      const r = await call("POST", path);
+      if (!r.ok) say(r.body.detail || "That did not work.");
+      refresh();
+    }
+
+    $("btn-open").addEventListener("click", () =>
+      act("/admin/open", "Open voting now? Every voter's screen will switch to the candidates."));
+    $("btn-close").addEventListener("click", () =>
+      act("/admin/close", "Close voting now? It cannot be reopened."));
+    $("btn-reveal").addEventListener("click", () =>
+      act("/admin/reveal", "Reveal results and end the election?"));
+  </script>
+</body>
+</html>

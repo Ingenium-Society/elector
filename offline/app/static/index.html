@@ -4,20 +4,216 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>School Election</title>
+  <!-- No links to the internet anywhere in this file: the election network has none
+       (AGENTS.md rule 5). Everything this page needs comes from the laptop. -->
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 480px;
-           margin: 3rem auto; padding: 0 1rem; text-align: center; }
+    body { font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto;
+           padding: 1.5rem 1rem; text-align: center; font-size: 1.1rem; line-height: 1.4; }
+    [hidden] { display: none !important; }
+    input, button { font: inherit; width: 100%; box-sizing: border-box;
+                    padding: 0.9rem; margin-top: 0.75rem; border-radius: 0.5rem; }
+    input { border: 2px solid #888; text-align: center; letter-spacing: 0.1em;
+            text-transform: uppercase; }
+    button { border: 2px solid #1a56db; background: #1a56db; color: #fff; cursor: pointer; }
+    button.secondary { background: #fff; color: #1a56db; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    .error { color: #b00020; font-weight: bold; }
+    #conn { background: #fff3cd; padding: 0.5rem; border-radius: 0.5rem; }
   </style>
 </head>
 <body>
   <h1>School Election</h1>
-  <p id="state">Loading...</p>
+  <p id="conn" hidden>Connection lost. Trying again...</p>
+
+  <main aria-live="polite">
+    <section id="screen-loading">Connecting...</section>
+
+    <section id="screen-token" hidden>
+      <p>Enter the code from your paper slip.</p>
+      <form id="token-form">
+        <input id="token-input" type="text" autocomplete="off" autocapitalize="characters"
+               spellcheck="false" maxlength="20" placeholder="K7M2-9QXP"
+               aria-label="Code from your slip">
+        <button type="submit" id="token-button">Check my code</button>
+      </form>
+      <p id="token-error" class="error" hidden></p>
+    </section>
+
+    <section id="screen-waiting" hidden>
+      <p><strong>Your code is verified.</strong></p>
+      <p>Voting has not started yet. This page changes by itself when it starts.
+         Please keep it open.</p>
+    </section>
+
+    <section id="screen-vote" hidden>
+      <p>Choose your candidate.</p>
+      <div id="candidates"></div>
+      <p id="candidates-error" class="error" hidden></p>
+    </section>
+
+    <section id="screen-confirm" hidden>
+      <p>Vote for <strong id="confirm-name"></strong>?</p>
+      <button id="confirm-yes">Yes, cast my vote</button>
+      <button id="confirm-no" class="secondary">Go back</button>
+      <p id="vote-error" class="error" hidden></p>
+    </section>
+
+    <section id="screen-done" hidden>
+      <p><strong>Your vote has been recorded.</strong></p>
+      <p>Thank you. You can close this page.</p>
+    </section>
+
+    <section id="screen-closed" hidden>
+      <p><strong>Voting is closed.</strong></p>
+    </section>
+
+    <section id="screen-results" hidden>
+      <p><strong>Voting is over.</strong> The results will be announced.</p>
+    </section>
+  </main>
 
   <script>
-    fetch("/api/state")
-      .then(r => r.json())
-      .then(d => { document.getElementById("state").textContent = "State: " + d.state; })
-      .catch(() => { document.getElementById("state").textContent = "Cannot reach server"; });
+    // What this page knows. It lives only in this browser tab's memory:
+    // nothing is saved on the phone, and the server keeps nothing about us.
+    let state = null;        // IDLE, OPEN, CLOSED or RESULTS, told to us by the server
+    let token = null;        // the code, once the server said it is valid
+    let chosen = null;       // the candidate the voter tapped, waiting for "Yes"
+    let voted = false;
+    let candidatesLoaded = false;
+
+    const $ = (id) => document.getElementById(id);
+    const SCREENS = ["loading", "token", "waiting", "vote", "confirm", "done", "closed", "results"];
+
+    function show(name) {
+      for (const s of SCREENS) $("screen-" + s).hidden = (s !== name);
+    }
+
+    function showError(id, message) {
+      $(id).textContent = message;     // textContent, never innerHTML: text cannot become code
+      $(id).hidden = (message === "");
+    }
+
+    // Decide which screen to show. The SERVER decides what is allowed
+    // (a hidden button is not security); this only decides what to display.
+    function render() {
+      if (state === null) return show("loading");
+      if (state === "CLOSED") return show("closed");
+      if (state === "RESULTS") return show("results");
+      if (voted) return show("done");
+      if (token === null) return show("token");
+      if (state === "IDLE") return show("waiting");
+      // state is OPEN and we hold a verified code
+      if (!candidatesLoaded) loadCandidates();
+      return show(chosen === null ? "vote" : "confirm");
+    }
+
+    async function loadCandidates() {
+      try {
+        const response = await fetch("/api/candidates");
+        if (!response.ok) throw new Error("not open");
+        const data = await response.json();
+        const box = $("candidates");
+        box.replaceChildren();
+        for (const c of data.candidates) {
+          const button = document.createElement("button");
+          button.textContent = c.name;
+          button.addEventListener("click", () => choose(c));
+          box.appendChild(button);
+        }
+        candidatesLoaded = true;
+        showError("candidates-error", "");
+      } catch (e) {
+        showError("candidates-error", "Could not load the candidates. Trying again...");
+        setTimeout(() => { if (state === "OPEN" && !candidatesLoaded) loadCandidates(); }, 2000);
+      }
+    }
+
+    function choose(candidate) {
+      chosen = candidate;
+      $("confirm-name").textContent = candidate.name;
+      showError("vote-error", "");
+      render();
+    }
+
+    $("confirm-no").addEventListener("click", () => { chosen = null; render(); });
+
+    $("confirm-yes").addEventListener("click", async () => {
+      const button = $("confirm-yes");
+      button.disabled = true;               // one press = one request
+      showError("vote-error", "");
+      try {
+        const response = await fetch("/api/vote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: token, candidate_id: chosen.id }),
+        });
+        if (response.ok) {
+          voted = true; token = null; chosen = null;   // forget the code
+          render();
+        } else if (response.status === 403) {
+          chosen = null;
+          showError("vote-error", "Voting is not open.");
+          render();
+        } else {
+          showError("vote-error", "This code was not accepted. If you already pressed the " +
+                    "button, your vote may have been counted. Please ask the staff.");
+        }
+      } catch (e) {
+        showError("vote-error", "Could not reach the server. Your vote has NOT been counted yet. " +
+                  "Please press the button again.");
+      }
+      button.disabled = false;
+    });
+
+    $("token-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const typed = $("token-input").value;
+      if (typed.trim() === "") return;
+      $("token-button").disabled = true;
+      showError("token-error", "");
+      try {
+        const response = await fetch("/api/token/check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: typed }),
+        });
+        const data = response.ok ? await response.json() : { valid: false };
+        if (data.valid) {
+          token = typed;
+          render();
+        } else {
+          showError("token-error", "That code is not valid, or it was already used. " +
+                    "Check it and try again, or ask the staff.");
+        }
+      } catch (e) {
+        showError("token-error", "Could not reach the server. Please try again.");
+      }
+      $("token-button").disabled = false;
+    });
+
+    // ---- live updates from the server ------------------------------------------
+    let socket = null;
+
+    function connect() {
+      const scheme = location.protocol === "https:" ? "wss://" : "ws://";
+      socket = new WebSocket(scheme + location.host + "/ws");
+      socket.onopen = () => { $("conn").hidden = true; };
+      socket.onmessage = (event) => { state = JSON.parse(event.data).state; render(); };
+      // When the connection drops, try again. The server tells us the current
+      // state as soon as we are back, so nothing is missed.
+      socket.onclose = () => { $("conn").hidden = false; setTimeout(connect, 2000); };
+    }
+    connect();
+
+    // Back-up for when the WebSocket is down: ask for the state every 5 seconds.
+    setInterval(async () => {
+      if (socket && socket.readyState === WebSocket.OPEN) return;
+      try {
+        const response = await fetch("/api/state");
+        state = (await response.json()).state;
+        render();
+      } catch (e) { /* still offline: the banner above says so */ }
+    }, 5000);
   </script>
 </body>
 </html>

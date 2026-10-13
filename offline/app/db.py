@@ -27,6 +27,47 @@ def get_state():
     return row[0]
 
 
+# The election only moves forward, one step at a time (SPEC section 5):
+#   IDLE -> OPEN -> CLOSED -> RESULTS
+# Built from config.STATES so the order is written down in only one place.
+NEXT_STATE = dict(zip(config.STATES, config.STATES[1:]))
+PREVIOUS_STATE = {new: old for old, new in NEXT_STATE.items()}
+
+
+class BadTransition(Exception):
+    """The requested state change is not allowed right now."""
+
+
+def change_state(new_state):
+    """Move the election to new_state. Only the very next step is allowed.
+
+    Raises BadTransition if the move is not allowed: skipping a step, going
+    backwards, repeating the current state, or an unknown state name.
+
+    Why a single UPDATE: "set it to new_state, but only if it is still
+    old_state" is one all-or-nothing step in SQLite. If the admin double-clicks
+    Open, or two people press it at once, exactly one of them wins and the
+    other gets BadTransition. We never read first and write later, because
+    in between someone else could have changed it.
+    """
+    old_state = PREVIOUS_STATE.get(new_state)
+    if old_state is None:
+        # IDLE has no previous step (nothing can go back to it), and an
+        # unknown name is not a state at all.
+        raise BadTransition(f"cannot move to {new_state!r}")
+
+    with connect() as conn:
+        changed = conn.execute(
+            "UPDATE config SET value = ? WHERE key = 'state' AND value = ?",
+            (new_state, old_state),
+        ).rowcount
+    if changed != 1:
+        raise BadTransition(
+            f"cannot move to {new_state}: the election is {get_state()}, not {old_state}"
+        )
+    return new_state
+
+
 def add_candidate(name):
     """Add one candidate and return the new candidate's id."""
     with connect() as conn:
