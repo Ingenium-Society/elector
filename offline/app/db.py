@@ -88,6 +88,12 @@ def count_tokens():
         return conn.execute("SELECT COUNT(*) FROM tokens").fetchone()[0]
 
 
+def count_votes():
+    """How many votes have been cast. Only a number: no candidate, no order."""
+    with connect() as conn:
+        return conn.execute("SELECT COUNT(*) FROM votes").fetchone()[0]
+
+
 def add_token_hashes(hashes):
     """Store token hashes, all unused. Either all of them are saved or none."""
     with connect() as conn:

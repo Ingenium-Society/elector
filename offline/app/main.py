@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from app import db, tokens
+from app import admin, db, tokens
 
 STATIC = Path(__file__).parent / "static"
 
@@ -17,6 +17,7 @@ async def lifespan(app):
 
 
 app = FastAPI(title="School Election Server", lifespan=lifespan)
+app.include_router(admin.router)
 
 
 @app.get("/")
