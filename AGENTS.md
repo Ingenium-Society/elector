@@ -153,6 +153,20 @@ Keep it short. Format:
 - Next: what should happen next / what is blocked
 ```
 
+### 2026-10-14, project owner (Claude), branch `ui-logo-polish`
+- Done: added the Global Darussalam Academy logo (`offline/app/static/logo.png`, flattened onto a
+  white background, 360x360, 33 KB) and restyled `index.html` and `admin.html` in the logo's navy
+  and gold (header with logo, candidate cards with a radio dot, connection status dot, admin
+  stat tiles). JavaScript logic and element ids are unchanged; only `connection()` also sets a
+  CSS class. `main.py` got one new route, `GET /logo.png`, that serves only that file. Do not
+  mount the whole `static/` folder: it would expose `admin.html` to the Wi-Fi. New tests in
+  `offline/tests/test_ui_assets.py`.
+- State: 86 tests pass. Checked in headless Chromium at phone width (all voter screens) and
+  laptop width (admin login, dashboard, results): no JavaScript errors. Still not checked on real
+  old/new phones (Stage 5). Page uses no external fonts or links (rule 5).
+- Next: real-phone check for Stage 5; update README/ROADMAP status (they still say Stage 1 and
+  "Stage 4 PR pending").
+
 ### 2026-10-13, ChatGPT, branch `stage-4-admin-controls`
 - Done: added guarded `IDLE -> OPEN -> CLOSED -> RESULTS` transitions, aggregate admin status,
   final candidate totals, localhost-only/password-protected admin endpoints and dashboard,

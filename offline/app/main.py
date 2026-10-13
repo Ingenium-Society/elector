@@ -76,6 +76,17 @@ def voter_page():
     return FileResponse(STATIC / "index.html")
 
 
+@app.get("/logo.png")
+def logo():
+    # Serve only this one file. Do NOT mount the whole static folder: that would also
+    # expose admin.html to every device on the Wi-Fi and bypass the local-only check.
+    return FileResponse(
+        STATIC / "logo.png",
+        media_type="image/png",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
 @app.get("/admin")
 def admin_page(request: Request):
     client_host = request.client.host if request.client else ""

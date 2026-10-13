@@ -3,43 +3,87 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f2268">
   <title>Election Admin</title>
+  <link rel="icon" type="image/png" href="/logo.png">
   <style>
-    :root { font-family: system-ui, -apple-system, sans-serif; color: #182230; background: #f3f6fa; }
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 1rem; box-sizing: border-box; }
-    main { width: min(100%, 34rem); background: white; border: 1px solid #dce3ec; border-radius: 1.25rem; padding: clamp(1.25rem, 5vw, 2rem); box-sizing: border-box; }
-    h1 { margin-top: 0; } label { display: block; font-weight: 650; margin: 1rem 0 .4rem; }
-    input, button { width: 100%; min-height: 3rem; border-radius: .7rem; font: inherit; box-sizing: border-box; padding: .7rem; }
-    input { border: 1px solid #aab7c7; } button { border: 0; margin-top: .65rem; background: #1d4ed8; color: white; font-weight: 700; cursor: pointer; }
-    button.secondary { background: #e8edf5; color: #182230; } button.danger { background: #a32929; }
-    button:disabled { opacity: .5; cursor: not-allowed; } .panel { background: #edf3fa; border-radius: .7rem; padding: 1rem; margin: 1rem 0; }
-    .muted { color: #586779; } .error { color: #b42318; min-height: 1.5em; } [hidden] { display: none !important; }
-    pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+    /* Same navy and gold palette as the voter page. Nothing is loaded from the internet. */
+    :root {
+      --navy: #0f2268; --navy-dark: #0a1748; --gold: #f6d463; --gold-soft: #fff6d6;
+      --ink: #182230; --muted: #526173; --line: #d5dcea; --page: #eef2f9; --err: #b42318; --danger: #a32929;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: var(--ink); background: var(--page);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; padding: 1rem; display: flex; align-items: center; justify-content: center;
+           background: linear-gradient(180deg, var(--navy) 0, var(--navy) 14rem, var(--page) 14rem); }
+    main { width: 100%; max-width: 34rem; background: #fff; border-radius: 1.25rem; overflow: hidden;
+           box-shadow: 0 18px 44px rgba(10, 23, 72, .22); }
+    header { background: #fff; text-align: center; padding: 1.4rem 1.25rem 1rem; border-bottom: 4px solid var(--gold); }
+    .logo { display: block; width: 7rem; height: 7rem; margin: 0 auto .7rem; background: #fff; }
+    .school { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: .85rem; font-weight: 700;
+              letter-spacing: .14em; text-transform: uppercase; color: var(--navy); }
+    h1 { margin: .25rem 0 0; font-family: Georgia, "Times New Roman", serif; font-size: 1.6rem; color: var(--navy); }
+    .content { padding: 1.25rem clamp(1.1rem, 5vw, 1.75rem) 1.6rem; }
+    p { line-height: 1.55; margin: .6rem 0; } .muted { color: var(--muted); }
+    .notice { background: var(--gold-soft); border-left: 5px solid var(--gold); border-radius: .8rem; padding: .75rem 1rem; color: #5c4700; margin-top: 0; }
+
+    label { display: block; font-weight: 700; margin: 1rem 0 .4rem; color: var(--navy); }
+    input, button { width: 100%; min-height: 3.2rem; border-radius: .8rem; font: inherit; padding: .7rem .9rem; }
+    input { border: 2px solid #b7c2d6; background: #fff; color: var(--ink); }
+    input:focus { border-color: var(--navy); }
+    button { border: 2px solid var(--navy); margin-top: .7rem; background: var(--navy); color: #fff; font-weight: 700; cursor: pointer;
+             -webkit-tap-highlight-color: transparent; }
+    button:active:not(:disabled) { background: var(--navy-dark); }
+    button.secondary { background: #fff; color: var(--navy); border-color: #b7c2d6; }
+    button.danger { background: var(--danger); border-color: var(--danger); }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    input:focus-visible, button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+    input:focus-visible { outline-color: var(--navy); outline-offset: 1px; }
+
+    .panel { background: #eef3fb; border-left: 5px solid var(--navy); border-radius: .8rem; padding: .5rem 1rem; margin: 0 0 1rem; }
+    .stats { display: flex; margin: 0 -.35rem 1rem; }
+    .stat { flex: 1 1 0; margin: 0 .35rem; background: #eef3fb; border-radius: .8rem; padding: .8rem .5rem; text-align: center; }
+    .stat .num { display: block; font-size: 1.7rem; font-weight: 800; color: var(--navy); line-height: 1.2; }
+    .stat .lab { display: block; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+    .state-pill { display: inline-block; padding: .25rem .8rem; border-radius: 99px; background: var(--navy); color: #fff;
+                  font-weight: 800; letter-spacing: .08em; font-size: .95rem; }
+    .state-row { text-align: center; margin: 0 0 1rem; }
+    .error { color: var(--err); min-height: 1.5em; font-weight: 600; }
+    pre#results { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; font-size: 1.05rem; line-height: 1.7;
+                  background: var(--gold-soft); border-left-color: var(--gold); padding: 1rem; margin-top: 1rem; }
+    [hidden] { display: none !important; }
   </style>
 </head>
 <body>
 <main>
-  <h1>Election admin</h1>
-  <p class="muted">This page is only served on the server laptop. Keep the admin password private.</p>
-  <section id="login">
-    <label for="password">Admin password</label>
-    <input id="password" type="password" autocomplete="current-password">
-    <button id="connect">Unlock admin controls</button>
-  </section>
-  <p id="message" class="error" role="alert"></p>
-  <section id="dashboard" hidden>
-    <div class="panel">
-      <p>Current state: <strong id="state">—</strong></p>
-      <p>Votes cast: <strong id="votes">0</strong></p>
-      <p>Tokens issued: <strong id="tokens">0</strong></p>
-    </div>
-    <button id="open">Open voting</button>
-    <button id="close" class="danger">Close voting</button>
-    <button id="reveal">Reveal results</button>
-    <button id="refresh" class="secondary">Refresh status</button>
-    <pre id="results" class="panel" hidden></pre>
-    <button id="lock" class="secondary">Lock admin page</button>
-  </section>
+  <header>
+    <img class="logo" src="/logo.png" alt="Global Darussalam Academy logo" width="112" height="112">
+    <p class="school">Global Darussalam Academy</p>
+    <h1>Election admin</h1>
+  </header>
+  <div class="content">
+    <p class="muted notice">This page is only served on the server laptop. Keep the admin password private.</p>
+    <section id="login">
+      <label for="password">Admin password</label>
+      <input id="password" type="password" autocomplete="current-password">
+      <button id="connect">Unlock admin controls</button>
+    </section>
+    <p id="message" class="error" role="alert"></p>
+    <section id="dashboard" hidden>
+      <p class="state-row">Current state: <span class="state-pill" id="state">—</span></p>
+      <div class="stats">
+        <div class="stat"><span class="num" id="votes">0</span><span class="lab">Votes cast</span></div>
+        <div class="stat"><span class="num" id="tokens">0</span><span class="lab">Tokens issued</span></div>
+      </div>
+      <button id="open">Open voting</button>
+      <button id="close" class="danger">Close voting</button>
+      <button id="reveal">Reveal results</button>
+      <button id="refresh" class="secondary">Refresh status</button>
+      <pre id="results" class="panel" hidden></pre>
+      <button id="lock" class="secondary">Lock admin page</button>
+    </section>
+  </div>
 </main>
 <script>
 (() => {
