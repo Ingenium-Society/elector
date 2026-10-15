@@ -153,6 +153,25 @@ Keep it short. Format:
 - Next: what should happen next / what is blocked
 ```
 
+### 2026-10-15, project owner (Claude), branch `stage-6-results-export`
+- Done: `offline/scripts/export_results.py` (was empty). Run from `offline/` after "Reveal results":
+  `python scripts/export_results.py --roll-ticks N`. It writes to `data/exports/` (git-ignored):
+  `results_report.docx` (one A4 page: school logo, winner or TIE banner, vote totals, turnout,
+  reconciliation checks, SHA-256, signature lines for chair / observer / teacher), `results.xlsx`,
+  `results.csv` (candidate and votes only), `election.sqlite` (SQLite backup copy) and
+  `election.sqlite.sha256`. Refuses unless state is RESULTS, refuses to overwrite an earlier
+  export, exits with code 2 and prints RECONCILIATION FAILED if the counts do not match.
+  Added `python-docx` to `requirements.txt` and `offline/tests/test_export.py` (18 tests).
+- Anonymity: the script only reads COUNTS (candidate totals, tokens issued/used/unused). It never
+  joins `tokens` with `votes` and never writes a token or token hash anywhere; a test searches the
+  csv, xlsx and docx for every token and hash used in the test election.
+- State: 104 tests pass. Rendered the report through LibreOffice and checked it visually (1 page).
+  Not opened in real Microsoft Word, and not run against a real 120-voter database.
+- NEEDS A SECOND HUMAN REVIEWER before merging (section 4: exports).
+- Not done: `POST /admin/export` button (SPEC section 8; the script is the only way to export for
+  now), `ballots_shuffled.csv` audit file, invalidating leftover tokens (SPEC A11).
+- Next: decide whether the admin page should get an Export button; Stage 7 hardening.
+
 ### 2026-10-14, project owner (Claude), branch `ui-logo-polish`
 - Done: added the Global Darussalam Academy logo (`offline/app/static/logo.png`, flattened onto a
   white background, 360x360, 33 KB) and restyled `index.html` and `admin.html` in the logo's navy

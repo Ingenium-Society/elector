@@ -19,6 +19,8 @@ Suggested: one branch and one pull request per stage.
 
 **Stage 4 implementation:** branch `stage-4-admin-controls` (PR pending). Code is not merged or production-approved until tests and review pass.
 
+**Stage 6 implementation:** branch `stage-6-results-export`. `offline/scripts/export_results.py` writes an official one-page results report (`results_report.docx`, with signature lines), `results.xlsx`, `results.csv`, a database copy and its SHA-256, and runs the reconciliation checks. Allowed only in state `RESULTS`. Needs the second-reviewer rule below. The shuffled-ballots audit file is not built yet.
+
 **Review rule:** anything touching the vote transaction, the votes table, logging,
 or exports needs a second person (or a teacher/IT staff) to review it before merging.
 
